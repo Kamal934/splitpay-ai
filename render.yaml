@@ -1,0 +1,39 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repo.
+# Secrets marked `sync: false` are asked for in the dashboard and never stored in git.
+services:
+  - type: web
+    name: splitpay-ai
+    runtime: node
+    plan: starter # always on + persistent disk (needed for autopilot and saved data)
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/groups
+    autoDeploy: true
+    disk:
+      name: splitpay-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /var/data
+      - key: PAYPAL_ENVIRONMENT
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_SANDBOX_BUSINESS_EMAIL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEMO_EMAIL_1
+        sync: false
+      - key: DEMO_EMAIL_2
+        sync: false
+      - key: DEMO_EMAIL_3
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true

@@ -1,11 +1,13 @@
 import { readReceipt } from "@/lib/ai";
 import { fail, ok } from "@/lib/http";
+import { checkAiLimit } from "@/lib/ratelimit";
 
 export const maxDuration = 120;
 const TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
 export async function POST(req: Request) {
   try {
+    checkAiLimit(req);
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) throw new Error("Upload a receipt image");

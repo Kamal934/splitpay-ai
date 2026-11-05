@@ -1,6 +1,7 @@
 import { planSplit } from "@/lib/ai";
 import { getGroup } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { checkAiLimit } from "@/lib/ratelimit";
 import { toCents } from "@/lib/money";
 import { computeShares } from "@/lib/split";
 
@@ -9,6 +10,7 @@ export const maxDuration = 120;
 /** The AI decides who shares what; computeShares does the exact cents. */
 export async function POST(req: Request) {
   try {
+    checkAiLimit(req);
     const b = (await req.json()) as {
       groupId: string;
       paidBy: string;

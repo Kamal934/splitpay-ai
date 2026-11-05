@@ -1,12 +1,14 @@
 import { runAgent, type ChatTurn } from "@/lib/agent";
 import { getGroup } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { checkAiLimit } from "@/lib/ratelimit";
 import { audit } from "@/lib/service";
 
 export const maxDuration = 120;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    checkAiLimit(req);
     const id = (await params).id;
     const { history } = (await req.json()) as { history: ChatTurn[] };
     const clean = (history || []).filter((t) => t.text?.trim()).slice(-20);
