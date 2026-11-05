@@ -17,7 +17,7 @@ type Receipt = {
   confidence: string;
   notes: string;
 };
-type Plan = { items: { index: number; member_ids: string[]; weights: number[] }[]; tax_mode: "proportional" | "equal"; tip_mode: "proportional" | "equal"; explanation: string; warnings: string };
+type Plan = { items: { index: number; member_ids: string[]; weights: number[] }[]; tax_mode: "proportional" | "equal"; tip_mode: "proportional" | "equal"; explanation: string; warnings: string; unmatched_names: string[] };
 type Preview = { items: ExpenseItem[]; shares: ExpenseShare[] };
 
 const EXAMPLES = ["Split everything equally", "Raj didn't drink, so no beer or wine for him", "Priya had two desserts, Sam skipped starters, tip split equally"];
@@ -245,6 +245,12 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
               <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-4">
                 <p className="text-sm">🤖 {plan.explanation}</p>
                 {plan.warnings && <p className="mt-1 text-xs text-amber-700">Assumed: {plan.warnings}</p>}
+                {plan.unmatched_names.length > 0 && (
+                  <p className="mt-2 rounded-lg bg-rose-50 p-2 text-sm text-rose-700">
+                    ⚠ <b>{plan.unmatched_names.join(", ")}</b> {plan.unmatched_names.length > 1 ? "aren't" : "isn't"} in this group. Click{" "}
+                    <b>Edit people &amp; emails</b> at the top to add or rename someone, then press Split with AI again.
+                  </p>
+                )}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {preview.shares.map((s) => (
                     <div key={s.memberId} className="flex justify-between rounded-lg bg-white px-3 py-2 text-sm">
@@ -263,7 +269,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
                     ))}
                   </ul>
                 </details>
-                <button className="btn-primary mt-3" onClick={save} disabled={!!busy}>
+                <button className="btn-primary mt-3" onClick={save} disabled={!!busy || plan.unmatched_names.length > 0}>
                   {busy === "saving" ? "Saving…" : "Save expense"}
                 </button>
               </div>

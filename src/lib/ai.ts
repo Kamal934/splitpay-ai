@@ -88,6 +88,9 @@ const SplitSchema = z.object({
     .describe("How the tip is shared: proportional to each person's items (default) or equally"),
   explanation: z.string().describe("One or two friendly sentences explaining the split, using member names"),
   warnings: z.string().describe("Ambiguities in the instruction you had to guess about, empty string if none"),
+  unmatched_names: z
+    .array(z.string())
+    .describe("People named in the instruction who are NOT in the member list (e.g. a typo or someone not added yet). Empty if all names match."),
 });
 export type SplitPlan = z.infer<typeof SplitSchema>;
 
@@ -106,7 +109,9 @@ export async function planSplit(
     output_config: { effort: "medium", format: zodOutputFormat(SplitSchema) },
     system:
       "You turn casual instructions about splitting a bill into an exact item-by-item assignment. " +
-      "Only use the member IDs given. If the instruction doesn't mention an item, split it equally among everyone. " +
+      "Only use the member IDs given. Match names loosely (nicknames, first names, small typos), but if the instruction " +
+      "names someone who clearly isn't a member, never map them onto a different member: list them in unmatched_names " +
+      "and assign items as if that sentence weren't there. 'Me'/'I' means the organiser. If the instruction doesn't mention an item, split it equally among everyone. " +
       "Use weights for uneven shares (e.g. 'Priya had two' -> weight 2). Return every item index exactly once. " +
       "Do not do any arithmetic on totals; the app computes amounts from your assignment.",
     messages: [
