@@ -1,24 +1,23 @@
-# Render Blueprint: Dashboard → New → Blueprint → pick this repo.
-# Secrets marked `sync: false` are asked for in the dashboard and never stored in git.
+# Render config (free plan). You can also create the service by hand:
+# Dashboard → New → Web Service → pick this repo, then use the same settings.
+# Secrets marked `sync: false` are entered in the dashboard and never stored in git.
+#
+# Free plan notes: the service sleeps after 15 min without traffic and its disk is
+# temporary. A free external pinger hitting POST /api/autopilot/tick every 10 minutes
+# keeps it awake and runs autopilot (see README → Deploy on Render).
 services:
   - type: web
     name: splitpay-ai
     runtime: node
-    plan: starter # always on + persistent disk (needed for autopilot and saved data)
+    plan: free
     region: oregon
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/groups
     autoDeploy: true
-    disk:
-      name: splitpay-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: DATA_DIR
-        value: /var/data
       - key: PAYPAL_ENVIRONMENT
         value: sandbox
       - key: PAYPAL_CLIENT_ID
