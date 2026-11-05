@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, CircleAlert, CircleCheck, Plus, Receipt, Sparkles, Upload, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { fmt, toCents } from "@/lib/money";
 import { computeShares, type PlanItem } from "@/lib/split";
@@ -195,7 +196,13 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
       </div>
 
       <div className="card-pad space-y-6">
-        {saved && !hasDraft && <Alert tone="success">✓ {saved}</Alert>}
+        {saved && !hasDraft && (
+          <Alert tone="success">
+            <span className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 shrink-0" aria-hidden /> {saved}
+            </span>
+          </Alert>
+        )}
 
         {/* Step 1: receipt */}
         {!hasDraft ? (
@@ -214,12 +221,14 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
               drag ? "border-brand-500 bg-brand-50" : "border-slate-300 bg-slate-50/60"
             }`}
           >
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-white text-xl shadow-sm ring-1 ring-line">🧾</div>
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-line">
+              <Receipt className="h-5 w-5" aria-hidden />
+            </div>
             <p className="mt-3 text-sm font-medium text-ink">Drop a receipt photo here</p>
             <p className="mt-1 text-xs text-muted">JPG, PNG or WEBP, up to 5 MB. Claude reads every line, tax and tip.</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <button className="btn-primary" onClick={() => fileRef.current?.click()}>
-                Upload receipt
+                <Upload className="h-4 w-4" aria-hidden /> Upload receipt
               </button>
               <button className="btn-secondary" onClick={() => setItems([{ name: "", amount: 0 }])}>
                 Enter manually
@@ -238,7 +247,8 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
               {receipt && (
                 <div className="mt-2">
                   <Badge tone={receipt.confidence === "high" ? "success" : receipt.confidence === "medium" ? "warning" : "danger"}>
-                    {receipt.confidence === "high" ? "✓" : "!"} {receipt.confidence} confidence
+                    {receipt.confidence === "high" ? <CircleCheck className="h-3.5 w-3.5" aria-hidden /> : <CircleAlert className="h-3.5 w-3.5" aria-hidden />}
+                    <span className="capitalize">{receipt.confidence}</span> confidence
                   </Badge>
                 </div>
               )}
@@ -250,7 +260,9 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
                   {READ_STEPS.map((s, i) => (
                     <li key={s} className="flex items-center gap-2.5 text-sm">
                       {i < readStep ? (
-                        <span className="grid h-5 w-5 place-items-center rounded-full bg-success text-[11px] text-white">✓</span>
+                        <span className="grid h-5 w-5 place-items-center rounded-full bg-success text-white">
+                          <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+                        </span>
                       ) : i === readStep ? (
                         <Spinner className="h-5 w-5 text-brand-600" />
                       ) : (
@@ -324,7 +336,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
                               aria-label={`Remove ${it.name || "item"}`}
                               onClick={() => editItems((x) => x.filter((_, k) => k !== i))}
                             >
-                              ✕
+                              <X className="h-4 w-4" aria-hidden />
                             </button>
                           </td>
                         </tr>
@@ -333,7 +345,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
                   </table>
                   <div className="border-t border-line px-2 py-1.5">
                     <button className="btn-ghost text-brand-700" onClick={() => editItems((x) => [...x, { name: "", amount: 0 }])}>
-                      + Add item
+                      <Plus className="h-4 w-4" aria-hidden /> Add item
                     </button>
                   </div>
                 </div>
@@ -356,10 +368,11 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
                     <span className="num">{fmt(toCents(computedTotal), group.currency)}</span>
                   </div>
                   {receipt && (
-                    <p className={`text-xs ${totalMatches ? "text-success" : "text-warning"}`}>
+                    <p className={`flex items-center gap-1.5 text-xs ${totalMatches ? "text-success" : "text-warning"}`}>
+                      {totalMatches ? <CircleCheck className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <CircleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                       {totalMatches
-                        ? `✓ Matches the receipt total of ${fmt(toCents(receipt.total), group.currency)}`
-                        : `! Receipt says ${fmt(toCents(receipt.total), group.currency)}, so check the items above`}
+                        ? `Matches the receipt total of ${fmt(toCents(receipt.total), group.currency)}`
+                        : `Receipt says ${fmt(toCents(receipt.total), group.currency)}, so check the items above`}
                     </p>
                   )}
                 </div>
@@ -387,7 +400,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
                 }}
               />
               <button className="btn-primary absolute bottom-2 right-2 h-8 px-3" onClick={split} disabled={!!busy || subtotal <= 0}>
-                {busy === "splitting" ? <Spinner /> : <span aria-hidden>✦</span>}
+                {busy === "splitting" ? <Spinner /> : <Sparkles className="h-4 w-4" aria-hidden />}
                 {busy === "splitting" ? "Splitting…" : "Split with AI"}
               </button>
             </div>
@@ -409,8 +422,8 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
         {plan && preview && (
           <div className="space-y-4">
             <div className="flex gap-3 rounded-xl border border-brand-100 bg-brand-50/60 p-4">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-600 text-xs text-white" aria-hidden>
-                ✦
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-600 text-white" aria-hidden>
+                <Sparkles className="h-4 w-4" />
               </span>
               <div className="text-sm">
                 <p className="text-ink">{plan.explanation}</p>
@@ -509,9 +522,10 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-              <p className={`text-sm ${preview.sum === toCents(computedTotal) ? "text-success" : "text-danger"}`}>
+              <p className={`flex items-center gap-1.5 text-sm ${preview.sum === toCents(computedTotal) ? "text-success" : "text-danger"}`}>
+                {preview.sum === toCents(computedTotal) ? <CircleCheck className="h-4 w-4 shrink-0" aria-hidden /> : <CircleAlert className="h-4 w-4 shrink-0" aria-hidden />}
                 {preview.sum === toCents(computedTotal)
-                  ? `✓ Shares add up to exactly ${fmt(preview.sum, group.currency)}`
+                  ? `Shares add up to exactly ${fmt(preview.sum, group.currency)}`
                   : `Shares total ${fmt(preview.sum, group.currency)}, which doesn't match ${fmt(toCents(computedTotal), group.currency)}`}
               </p>
               <button className="btn-primary" onClick={save} disabled={!!busy || plan.unmatched_names.length > 0}>

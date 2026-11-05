@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUp, Ban, Bell, CircleAlert, CircleCheck, Receipt, RefreshCw, Send, Sparkles, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
@@ -11,12 +12,12 @@ type Turn = { role: "user" | "assistant"; text: string; actions?: Action[]; erro
 const SUGGESTIONS = ["Who still owes me money?", "Send PayPal requests to everyone who owes", "Has anyone paid? Remind whoever hasn't", "I paid $48 for the cab, split with everyone"];
 
 /** Labels describe what the backend confirmed, never more. */
-const ACTION_META: Record<string, { label: string; icon: string; paypal: boolean }> = {
-  request: { label: "PayPal request", icon: "📨", paypal: true },
-  reminder: { label: "PayPal reminder", icon: "🔔", paypal: true },
-  status: { label: "PayPal status update", icon: "↻", paypal: true },
-  cancel: { label: "PayPal cancellation", icon: "✕", paypal: true },
-  expense: { label: "Ledger", icon: "🧾", paypal: false },
+const ACTION_META: Record<string, { label: string; icon: LucideIcon; paypal: boolean }> = {
+  request: { label: "PayPal request", icon: Send, paypal: true },
+  reminder: { label: "PayPal reminder", icon: Bell, paypal: true },
+  status: { label: "PayPal status update", icon: RefreshCw, paypal: true },
+  cancel: { label: "PayPal cancellation", icon: Ban, paypal: true },
+  expense: { label: "Ledger", icon: Receipt, paypal: false },
 };
 
 /** Minimal markdown: **bold** and "- " bullets. */
@@ -50,15 +51,20 @@ function Rich({ text }: { text: string }) {
 }
 
 function ActionCard({ a }: { a: Action }) {
-  const meta = ACTION_META[a.kind] ?? { label: "Action", icon: "•", paypal: false };
+  const meta = ACTION_META[a.kind] ?? { label: "Action", icon: CircleCheck, paypal: false };
+  const Icon = meta.icon;
   return (
     <div className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs ${a.ok ? "border-line bg-white" : "border-red-200 bg-red-50"}`}>
-      <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md text-[11px] ${meta.paypal ? "bg-[#003087] text-white" : "bg-slate-100"}`} aria-hidden>
-        {meta.icon}
+      <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${meta.paypal ? "bg-[#003087] text-white" : "bg-slate-100 text-muted"}`} aria-hidden>
+        <Icon className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0">
         <p className="font-medium text-ink">
-          {meta.label} <span className={a.ok ? "text-success" : "text-danger"}>· {a.ok ? "done" : "failed"}</span>
+          {meta.label}
+          <span className={`ml-1.5 inline-flex items-center gap-1 ${a.ok ? "text-success" : "text-danger"}`}>
+            {a.ok ? <CircleCheck className="h-3 w-3" aria-hidden /> : <CircleAlert className="h-3 w-3" aria-hidden />}
+            {a.ok ? "Done" : "Failed"}
+          </span>
         </p>
         <p className="text-muted">{a.detail}</p>
       </div>
@@ -112,8 +118,8 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
   return (
     <section className="card flex h-[620px] flex-col overflow-hidden xl:h-full">
       <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-sm text-white" aria-hidden>
-          ✦
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white" aria-hidden>
+          <Sparkles className="h-4 w-4" />
         </span>
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-ink">SplitPay Agent</h2>
@@ -129,8 +135,8 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
             </div>
           ) : (
             <div key={i} className="flex gap-2.5">
-              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-brand-50 text-[11px] text-brand-700" aria-hidden>
-                ✦
+              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-brand-50 text-brand-600" aria-hidden>
+                <Sparkles className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0 flex-1 space-y-2">
                 {t.error ? (
@@ -161,9 +167,9 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
         )}
         {busy && (
           <div className="flex gap-2.5">
-            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-brand-50 text-[11px] text-brand-700" aria-hidden>
-              ✦
-            </span>
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-brand-50 text-brand-600" aria-hidden>
+                <Sparkles className="h-3.5 w-3.5" />
+              </span>
             <div className="flex items-center gap-2 rounded-lg border border-line bg-slate-50 px-3 py-2 text-xs text-muted">
               <Spinner className="h-3.5 w-3.5 text-brand-600" />
               Working with your group&apos;s ledger and PayPal…
@@ -202,7 +208,7 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
             aria-label="Message the SplitPay agent"
           />
           <button className="btn-primary h-8 px-3" disabled={busy || !input.trim()} aria-label="Send">
-            ↑
+            <ArrowUp className="h-4 w-4" aria-hidden />
           </button>
         </form>
         <p className="mt-2 px-1 text-[11px] text-muted">The agent only sends PayPal requests when you ask, and always uses the ledger amounts.</p>

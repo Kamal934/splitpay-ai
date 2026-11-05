@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleCheck, Clock, Receipt, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -95,7 +96,7 @@ export default function Dashboard() {
               {groups === null ? (
                 <p className="px-6 pb-6 text-sm text-muted">Loading…</p>
               ) : all.length === 0 ? (
-                <EmptyState icon="🧾" title="No groups yet" text="Create a group, or load the demo trip to try every feature in about a minute." action={<DemoButton label="Load demo trip" />} />
+                <EmptyState icon={Receipt} title="No groups yet" text="Create a group, or load the demo trip to try every feature in about a minute." action={<DemoButton label="Load demo trip" />} />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px]">
@@ -114,7 +115,7 @@ export default function Dashboard() {
                         const owedTotal = s.collected + s.open;
                         const pct = owedTotal ? Math.round((s.collected / owedTotal) * 100) : 0;
                         const status =
-                          s.spent === 0 ? <Badge>New</Badge> : s.open === 0 ? <Badge tone="success">✓ Settled</Badge> : s.pending > 0 ? <Badge tone="warning">● Collecting</Badge> : <Badge tone="brand">Ready to request</Badge>;
+                          s.spent === 0 ? <Badge>New</Badge> : s.open === 0 ? <Badge tone="success"><CircleCheck className="h-3.5 w-3.5" aria-hidden /> Settled</Badge> : s.pending > 0 ? <Badge tone="warning"><Clock className="h-3.5 w-3.5" aria-hidden /> Collecting</Badge> : <Badge tone="brand"><Send className="h-3.5 w-3.5" aria-hidden /> Ready to request</Badge>;
                         return (
                           <tr key={g.id} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => router.push(`/groups/${g.id}`)}>
                             <td className="td">

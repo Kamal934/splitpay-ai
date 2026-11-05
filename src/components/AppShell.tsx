@@ -1,5 +1,6 @@
 "use client";
 
+import { Code, House, LayoutDashboard, Menu, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -23,17 +24,7 @@ function NavLink({ href, active, children, onClick }: { href: string; active: bo
   );
 }
 
-const Icon = ({ d }: { d: string }) => (
-  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} className="h-[18px] w-[18px] shrink-0" aria-hidden>
-    <path d={d} strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-const ICONS = {
-  dashboard: "M3 3h6v6H3zM11 3h6v4h-6zM11 9h6v8h-6zM3 11h6v6H3z",
-  plus: "M10 4v12M4 10h12",
-  home: "M3 9l7-6 7 6v8H3z",
-  code: "M7 6l-4 4 4 4M13 6l4 4-4 4",
-};
+const ICON = "h-[18px] w-[18px] shrink-0";
 
 function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: string; onNavigate?: () => void }) {
   return (
@@ -44,10 +35,10 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
         <div className="space-y-0.5">
           <NavLink href="/app" active={pathname === "/app"} onClick={onNavigate}>
-            <Icon d={ICONS.dashboard} /> Dashboard
+            <LayoutDashboard className={ICON} aria-hidden /> Dashboard
           </NavLink>
           <NavLink href="/app#new" active={false} onClick={onNavigate}>
-            <Icon d={ICONS.plus} /> New group
+            <Plus className={ICON} aria-hidden /> New group
           </NavLink>
         </div>
         <div>
@@ -65,10 +56,10 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
       </nav>
       <div className="space-y-0.5 border-t border-line px-3 py-3">
         <NavLink href="/" active={false} onClick={onNavigate}>
-          <Icon d={ICONS.home} /> Product site
+          <House className={ICON} aria-hidden /> Product site
         </NavLink>
         <a href={REPO} target="_blank" rel="noreferrer" className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-muted hover:bg-slate-100 hover:text-ink">
-          <Icon d={ICONS.code} /> Source code
+          <Code className={ICON} aria-hidden /> Source code
         </a>
         <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
           <span className="h-1.5 w-1.5 rounded-full bg-warning" /> PayPal sandbox · test money only
@@ -99,9 +90,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
         <Logo href="/app" />
         <button className="btn-ghost" aria-label="Open navigation" onClick={() => setOpen(true)}>
-          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-            <path d="M3 6h14M3 10h14M3 14h14" strokeLinecap="round" />
-          </svg>
+          <Menu className="h-5 w-5" aria-hidden />
         </button>
       </div>
       {open && (

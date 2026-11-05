@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleCheck, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { fmt } from "@/lib/money";
 import { groupStats } from "@/lib/stats";
@@ -60,7 +61,7 @@ export default function GroupView({ id }: { id: string }) {
         }
         actions={
           <button className="btn-secondary" onClick={() => setEditing(true)}>
-            People & emails
+            <Users className="h-4 w-4" aria-hidden /> People & emails
           </button>
         }
       />
@@ -114,7 +115,9 @@ export default function GroupView({ id }: { id: string }) {
                         <td className="td num text-right text-muted">{fmt(b.shareCents, group.currency)}</td>
                         <td className="td text-right">
                           {b.netCents === 0 ? (
-                            <Badge tone="success">✓ Settled</Badge>
+                            <Badge tone="success">
+                              <CircleCheck className="h-3.5 w-3.5" aria-hidden /> Settled
+                            </Badge>
                           ) : b.netCents > 0 ? (
                             <span className="num font-semibold text-success">Gets back {fmt(b.netCents, group.currency)}</span>
                           ) : (

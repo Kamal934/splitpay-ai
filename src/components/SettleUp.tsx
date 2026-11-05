@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, CircleAlert, CircleCheck, ExternalLink, RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
 import { fmt, simplifyDebts } from "@/lib/money";
 import { groupStats, timeAgo } from "@/lib/stats";
@@ -47,10 +48,10 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
           actions={
             <>
               <button className="btn-secondary" disabled={!!busy || !hasOpen} onClick={() => act("refresh", { action: "refresh" })}>
-                {busy === "refresh" ? <Spinner /> : "↻"} Check payments
+                {busy === "refresh" ? <Spinner /> : <RefreshCw className="h-4 w-4" aria-hidden />} Check payments
               </button>
               <button className="btn-primary" disabled={!!busy || toRequest.length === 0} onClick={() => setConfirmSend(true)}>
-                {busy === "send" && <Spinner />} Request {toRequest.length > 0 ? fmt(s.notRequested, group.currency) : "payments"}
+                {busy === "send" ? <Spinner /> : <Send className="h-4 w-4" aria-hidden />} Request {toRequest.length > 0 ? fmt(s.notRequested, group.currency) : "payments"}
               </button>
             </>
           }
@@ -82,7 +83,7 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
                 <span className="flex min-w-0 items-center gap-2 text-sm">
                   <Avatar id={t.from.id} name={t.from.name} size="sm" />
                   <span className="truncate font-medium text-ink">{t.from.name}</span>
-                  <span className="text-muted">→</span>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
                   <span className="truncate text-muted">{t.to.name}</span>
                 </span>
                 <span className="num text-sm font-semibold text-ink">{fmt(t.cents, group.currency)}</span>
@@ -95,7 +96,7 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
       {/* Invoice table */}
       {requests.length === 0 ? (
         <EmptyState
-          icon="📨"
+          icon={Send}
           title={transfers.length ? "No PayPal requests yet" : "Nothing to collect"}
           text={transfers.length ? "When you're ready, request payments and each person gets a PayPal invoice." : "Add an expense and anyone who owes you will show up here."}
         />
@@ -138,7 +139,7 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
                       <div className="flex justify-end gap-0.5 whitespace-nowrap">
                         {r.payerUrl && (
                           <a className="btn-ghost px-2" title="Open the PayPal invoice" href={r.payerUrl} target="_blank" rel="noreferrer">
-                            Invoice ↗
+                            Invoice <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                           </a>
                         )}
                         {open && (
@@ -167,8 +168,8 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
             <Alert tone={log.every((l) => l.ok) ? "success" : "warning"}>
               <ul className="space-y-0.5">
                 {log.map((l, i) => (
-                  <li key={i}>
-                    {l.ok ? "✓" : "✕"} {l.detail}
+                  <li key={i} className="flex items-center gap-2">
+                    {l.ok ? <CircleCheck className="h-4 w-4 shrink-0" aria-hidden /> : <CircleAlert className="h-4 w-4 shrink-0" aria-hidden />} {l.detail}
                   </li>
                 ))}
               </ul>

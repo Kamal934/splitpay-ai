@@ -1,5 +1,6 @@
 "use client";
 
+import { Ban, CircleAlert, CircleCheck, CircleDashed, Clock, RotateCcw, type LucideIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { initials } from "@/lib/money";
 import type { RequestStatus } from "@/lib/types";
@@ -65,38 +66,39 @@ export function Badge({ tone = "neutral", children, title }: { tone?: Tone; chil
 }
 
 /** Maps a real PayPal invoice status to label + tone. Never shows "Paid" unless PayPal says so. */
-export function paymentStatus(s: RequestStatus): { label: string; tone: Tone; icon: string } {
+export function paymentStatus(s: RequestStatus): { label: string; tone: Tone; icon: LucideIcon } {
   switch (s) {
     case "PAID":
-      return { label: "Paid", tone: "success", icon: "✓" };
+      return { label: "Paid", tone: "success", icon: CircleCheck };
     case "MARKED_AS_PAID":
-      return { label: "Marked paid", tone: "success", icon: "✓" };
+      return { label: "Marked paid", tone: "success", icon: CircleCheck };
     case "PARTIALLY_PAID":
-      return { label: "Partly paid", tone: "warning", icon: "◐" };
+      return { label: "Partly paid", tone: "warning", icon: Clock };
     case "SENT":
     case "UNPAID":
     case "SCHEDULED":
     case "PAYMENT_PENDING":
-      return { label: "Pending", tone: "warning", icon: "●" };
+      return { label: "Pending", tone: "warning", icon: Clock };
     case "DRAFT":
-      return { label: "Draft", tone: "neutral", icon: "○" };
+      return { label: "Draft", tone: "neutral", icon: CircleDashed };
     case "CANCELLED":
-      return { label: "Cancelled", tone: "neutral", icon: "✕" };
+      return { label: "Cancelled", tone: "neutral", icon: Ban };
     case "REFUNDED":
     case "PARTIALLY_REFUNDED":
     case "MARKED_AS_REFUNDED":
-      return { label: "Refunded", tone: "neutral", icon: "↺" };
+      return { label: "Refunded", tone: "neutral", icon: RotateCcw };
     case "ERROR":
     default:
-      return { label: "Failed", tone: "danger", icon: "!" };
+      return { label: "Failed", tone: "danger", icon: CircleAlert };
   }
 }
 
 export function StatusBadge({ status, title }: { status: RequestStatus; title?: string }) {
   const p = paymentStatus(status);
+  const Icon = p.icon;
   return (
     <Badge tone={p.tone} title={title ?? `PayPal status: ${status}`}>
-      <span aria-hidden>{p.icon}</span>
+      <Icon className="h-3.5 w-3.5" aria-hidden />
       {p.label}
     </Badge>
   );
@@ -119,10 +121,12 @@ export function Alert({ tone = "danger", children }: { tone?: "danger" | "warnin
 }
 
 /* ---------- Empty state ---------- */
-export function EmptyState({ icon, title, text, action }: { icon: string; title: string; text: string; action?: React.ReactNode }) {
+export function EmptyState({ icon: Icon, title, text, action }: { icon: LucideIcon; title: string; text: string; action?: React.ReactNode }) {
   return (
     <div className="grid place-items-center px-6 py-12 text-center">
-      <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-xl">{icon}</div>
+      <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
+        <Icon className="h-5 w-5" aria-hidden />
+      </div>
       <p className="mt-3 text-sm font-semibold text-ink">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-muted">{text}</p>
       {action && <div className="mt-4">{action}</div>}

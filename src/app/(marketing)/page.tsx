@@ -1,3 +1,4 @@
+import { ArrowRight, Calculator, CircleCheck, MessageSquareText, RefreshCw, ScanLine, Send, ShieldCheck, Sparkles, Table2 } from "lucide-react";
 import Link from "next/link";
 import DemoButton from "@/components/DemoButton";
 
@@ -20,12 +21,12 @@ const STEPS = [
 ];
 
 const FEATURES = [
-  { icon: "📸", title: "Receipt vision", text: "Reads messy, real-world receipts, including modifiers, combos and service charges." },
-  { icon: "💬", title: "Plain-English splits", text: "Handles “didn't drink”, “had two”, “skip the meat” and flags names that aren't in the group." },
-  { icon: "🧮", title: "Exact to the cent", text: "The AI decides who shares what. Deterministic math does the money, so the shares always add up to the total." },
-  { icon: "📨", title: "PayPal requests", text: "One click sends each person a PayPal invoice, built on the official PayPal Agent Toolkit." },
-  { icon: "🔄", title: "Live payment status", text: "Statuses sync from PayPal: sent, paid, cancelled. Balances update the moment someone pays." },
-  { icon: "📊", title: "Group ledger", text: "A sortable, filterable ledger of every expense and each person's share, with totals." },
+  { icon: ScanLine, title: "Receipt vision", text: "Reads messy, real-world receipts, including modifiers, combos and service charges." },
+  { icon: MessageSquareText, title: "Plain-English splits", text: "Handles “didn't drink”, “had two”, “skip the meat” and flags names that aren't in the group." },
+  { icon: Calculator, title: "Exact to the cent", text: "The AI decides who shares what. Deterministic math does the money, so the shares always add up to the total." },
+  { icon: Send, title: "PayPal requests", text: "One click sends each person a PayPal invoice, built on the official PayPal Agent Toolkit." },
+  { icon: RefreshCw, title: "Live payment status", text: "Statuses sync from PayPal: sent, paid, cancelled. Balances update the moment someone pays." },
+  { icon: Table2, title: "Group ledger", text: "A sortable, filterable ledger of every expense and each person's share, with totals." },
 ];
 
 const GUARDS = [
@@ -63,7 +64,7 @@ function HeroVisual() {
       </div>
       {/* AI split */}
       <div className="card relative mt-3 ml-10 rotate-[1deg] p-4 shadow-xl">
-        <p className="text-xs font-semibold text-brand-700">🤖 “Kamal skips the Moku Large, he&apos;s vegetarian”</p>
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-brand-700"><Sparkles className="h-3.5 w-3.5" aria-hidden /> “Kamal skips the Moku Large, he&apos;s vegetarian”</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           {[
             ["You", "$8.27"],
@@ -171,7 +172,9 @@ export default function Landing() {
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
               <div key={f.title} className="card card-pad transition-shadow hover:shadow-md">
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-2xl">{f.icon}</div>
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
+                  <f.icon className="h-5 w-5" aria-hidden />
+                </div>
                 <h3 className="mt-4 font-semibold text-ink">{f.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted">{f.text}</p>
               </div>
@@ -192,24 +195,24 @@ export default function Landing() {
           <ul className="mt-6 space-y-2 text-sm text-slate-700">
             {["Who still owes me money?", "Send PayPal requests to everyone who owes", "I paid $48 for the cab, split with Kamal and Priya", "Remind whoever hasn't paid"].map((q) => (
               <li key={q} className="flex items-center gap-2">
-                <span className="text-brand-600">→</span> “{q}”
+                <ArrowRight className="h-4 w-4 shrink-0 text-brand-600" aria-hidden /> “{q}”
               </li>
             ))}
           </ul>
         </div>
         <div className="card overflow-hidden shadow-xl">
-          <div className="border-b border-slate-100 px-4 py-3 text-sm font-bold">🤖 SplitPay Agent</div>
+          <div className="border-b border-slate-100 px-4 py-3 flex items-center gap-2 text-sm font-semibold text-ink"><Sparkles className="h-4 w-4 text-brand-600" aria-hidden /> SplitPay Agent</div>
           <div className="space-y-3 p-4 text-sm">
             <div className="flex justify-end">
               <p className="max-w-[80%] rounded-2xl bg-brand-600 px-3 py-2 text-white">Has anyone paid yet? Remind whoever hasn&apos;t.</p>
             </div>
             <div className="max-w-[90%] rounded-2xl bg-slate-100 px-3 py-2">
               <p>I just checked PayPal:</p>
-              <p className="mt-1">• <b>Kamal</b>: $3.67, paid ✅</p>
-              <p>• <b>Priya</b>: $8.25, paid ✅</p>
-              <p>• <b>Sam</b>: $8.25, not paid yet</p>
+              <p className="mt-1">· <b>Kamal</b>: $3.67, paid</p>
+              <p>· <b>Priya</b>: $8.25, paid</p>
+              <p>· <b>Sam</b>: $8.25, not paid yet</p>
               <p className="mt-1">I sent Sam a friendly reminder.</p>
-              <p className="mt-2 border-t border-slate-200 pt-2 text-xs text-emerald-700">✓ Reminded Sam via PayPal</p>
+              <p className="mt-2 border-t border-slate-200 pt-2 flex items-center gap-1.5 text-xs text-emerald-700"><CircleCheck className="h-3.5 w-3.5" aria-hidden /> Reminded Sam via PayPal</p>
             </div>
           </div>
         </div>
@@ -223,7 +226,7 @@ export default function Landing() {
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {GUARDS.map((g) => (
               <div key={g.title} className="rounded-xl border border-line bg-canvas p-6">
-                <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-50 text-sm text-success">✓</span>
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-success"><ShieldCheck className="h-4 w-4" aria-hidden /></span>
                 <h3 className="mt-3 font-semibold text-ink">{g.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted">{g.text}</p>
               </div>

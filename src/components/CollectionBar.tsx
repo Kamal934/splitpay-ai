@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleCheck, CircleDashed, Clock } from "lucide-react";
 import { useState } from "react";
 import { fmt } from "@/lib/money";
 
@@ -11,9 +12,9 @@ import { fmt } from "@/lib/money";
 export type CollectionParts = { collected: number; pending: number; notRequested: number };
 
 const PARTS = [
-  { key: "collected", label: "Collected", icon: "✓", color: "#059669" },
-  { key: "pending", label: "Pending in PayPal", icon: "●", color: "#D97706" },
-  { key: "notRequested", label: "Not requested yet", icon: "○", color: "#94A3B8" },
+  { key: "collected", label: "Collected", icon: CircleCheck, color: "#059669" },
+  { key: "pending", label: "Pending in PayPal", icon: Clock, color: "#D97706" },
+  { key: "notRequested", label: "Not requested yet", icon: CircleDashed, color: "#94A3B8" },
 ] as const;
 
 export default function CollectionBar({ parts, currency = "USD", tall = true }: { parts: CollectionParts; currency?: string; tall?: boolean }) {
@@ -50,7 +51,7 @@ export default function CollectionBar({ parts, currency = "USD", tall = true }: 
         {PARTS.map((p) => (
           <li key={p.key} className="flex items-center gap-1.5 text-muted">
             <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: p.color }} aria-hidden />
-            <span aria-hidden className="text-[10px]">{p.icon}</span>
+            <p.icon className="h-3.5 w-3.5" aria-hidden />
             {p.label}
             <span className="num font-medium text-ink">{fmt(parts[p.key], currency)}</span>
           </li>
