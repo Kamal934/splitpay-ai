@@ -1,40 +1,82 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f6f7fb;
-  --foreground: #0f172a;
-}
-
+/* ---------- Design tokens: Premium Light Fintech ---------- */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dce8ff;
-  --color-brand-500: #2563eb;
-  --color-brand-600: #1d4ed8;
-  --color-brand-700: #1e40af;
+
+  /* Primary (purple). "brand" is the only accent; use it sparingly. */
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+
+  /* Surfaces & text */
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-ink: #111827;
+  --color-muted: #64748b;
+  --color-line: #e5e7eb;
+
+  /* Status */
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+}
+
+:root {
+  --background: #f8fafc;
+  --foreground: #111827;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), Inter, system-ui, sans-serif;
+  font-feature-settings: "tnum" 0;
 }
 
+/* Tabular numbers for every money figure */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Components ---------- */
 @utility card {
-  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  @apply rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+}
+@utility card-pad {
+  @apply p-5 sm:p-6;
 }
 @utility btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 bg-brand-600 text-white hover:bg-brand-700;
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-secondary {
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-medium text-ink shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50;
+  @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted transition-colors hover:bg-slate-100 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-danger {
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-danger px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility input {
-  @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
+  @apply h-9 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-100;
+}
+@utility textarea {
+  @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-100;
 }
 @utility label {
-  @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500;
+  @apply mb-1.5 block text-xs font-medium text-muted;
+}
+@utility eyebrow {
+  @apply text-xs font-medium uppercase tracking-wider text-muted;
+}
+@utility th {
+  @apply px-4 py-2.5 text-left text-xs font-medium text-muted;
+}
+@utility td {
+  @apply px-4 py-3 text-sm;
 }

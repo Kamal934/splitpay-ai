@@ -1,16 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { computeBalances, fmt, initials } from "@/lib/money";
+import { fmt } from "@/lib/money";
+import { groupStats } from "@/lib/stats";
 import type { Group } from "@/lib/types";
-import { PAID_STATUSES } from "@/lib/types";
 import AddExpense from "./AddExpense";
 import AgentChat from "./AgentChat";
 import { api } from "./api";
+import { PageBody, PageHeader } from "./AppShell";
+import CollectionBar from "./CollectionBar";
 import Ledger from "./Ledger";
 import MembersEditor from "./MembersEditor";
 import SettleUp from "./SettleUp";
+import { Alert, Avatar, AvatarStack, Badge, SectionHeader } from "./ui";
 
 export default function GroupView({ id }: { id: string }) {
   const [group, setGroup] = useState<Group | null>(null);
@@ -23,116 +25,124 @@ export default function GroupView({ id }: { id: string }) {
 
   useEffect(reload, [reload]);
 
-  if (err) return <p className="card m-6 p-6 text-red-700">{err}</p>;
-  if (!group) return <p className="mx-auto max-w-7xl p-6 text-slate-500">Loading…</p>;
+  if (err)
+    return (
+      <PageBody>
+        <Alert>{err}</Alert>
+      </PageBody>
+    );
+  if (!group)
+    return (
+      <PageBody>
+        <div className="space-y-4">
+          <div className="h-8 w-64 animate-pulse rounded-md bg-slate-200" />
+          <div className="grid gap-4 sm:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />
+            ))}
+          </div>
+        </div>
+      </PageBody>
+    );
 
-  const balances = computeBalances(group);
-  const total = group.expenses.reduce((a, e) => a + e.totalCents, 0);
-  const owed = balances.reduce((a, b) => a + b.requestableCents + b.pendingCents, 0);
-  const paid = group.requests.filter((r) => PAID_STATUSES.includes(r.status)).reduce((a, r) => a + r.cents, 0);
-  const progress = paid + owed > 0 ? Math.round((paid / (paid + owed)) * 100) : 0;
-  const stage = group.expenses.length === 0 ? 0 : group.requests.length === 0 ? 1 : owed > 0 ? 2 : 3;
-  const STAGES = ["Add expenses", "Send PayPal requests", "Collect payments", "Settled"];
+  const s = groupStats(group);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
-      <div className="card overflow-hidden">
-        <div className="bg-gradient-to-r from-brand-600 to-indigo-600 px-6 py-6 text-white">
-          <Link href="/app" className="text-sm text-brand-100 hover:text-white">
-            ← All groups
-          </Link>
-          <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">{group.name}</h1>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  {group.members.map((m) => (
-                    <span key={m.id} title={m.name} className="grid h-8 w-8 place-items-center rounded-full border-2 border-indigo-600 bg-white text-[11px] font-bold text-brand-700">
-                      {initials(m.name)}
-                    </span>
-                  ))}
+    <>
+      <PageHeader
+        crumbs={[{ label: "Dashboard", href: "/app" }, { label: "Groups", href: "/app" }, { label: group.name }]}
+        title={group.name}
+        subtitle={
+          <span className="flex items-center gap-2">
+            <AvatarStack people={group.members} max={6} />
+            {group.members.length} people · {group.expenses.length} expenses
+          </span>
+        }
+        actions={
+          <button className="btn-secondary" onClick={() => setEditing(true)}>
+            People & emails
+          </button>
+        }
+      />
+
+      <PageBody>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          {[
+            ["Total spent", s.spent, "All expenses in this group"],
+            ["Collected via PayPal", s.collected, "Invoices PayPal reports as paid"],
+            ["Pending in PayPal", s.pending, "Sent, awaiting payment"],
+            ["Not requested yet", s.notRequested, "Owed, no invoice sent"],
+          ].map(([label, v, hint]) => (
+            <div key={label as string} className="card card-pad">
+              <p className="text-sm text-muted">{label as string}</p>
+              <p className="num mt-1.5 text-xl font-semibold tracking-tight text-ink sm:text-2xl">{fmt(v as number, group.currency)}</p>
+              <p className="mt-1 text-xs text-muted">{hint as string}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+          <div className="min-w-0 space-y-6">
+            <div className="card">
+              <div className="card-pad">
+                <SectionHeader title="Balances" description="What each person paid, their share, and where they stand." />
+                <div className="mt-5">
+                  <CollectionBar parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }} currency={group.currency} />
                 </div>
-                <span className="text-sm text-brand-100">{group.members.length} people</span>
+              </div>
+              <div className="overflow-x-auto border-t border-line">
+                <table className="w-full min-w-[560px]">
+                  <thead className="bg-slate-50/70">
+                    <tr>
+                      <th className="th">Person</th>
+                      <th className="th text-right">Paid</th>
+                      <th className="th text-right">Share</th>
+                      <th className="th text-right">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {s.balances.map((b) => (
+                      <tr key={b.member.id}>
+                        <td className="td">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar id={b.member.id} name={b.member.name} size="sm" />
+                            <span className="font-medium text-ink">{b.member.name}</span>
+                            {b.member.isOrganizer && <Badge tone="brand">Organiser</Badge>}
+                          </div>
+                        </td>
+                        <td className="td num text-right text-muted">{fmt(b.paidCents, group.currency)}</td>
+                        <td className="td num text-right text-muted">{fmt(b.shareCents, group.currency)}</td>
+                        <td className="td text-right">
+                          {b.netCents === 0 ? (
+                            <Badge tone="success">✓ Settled</Badge>
+                          ) : b.netCents > 0 ? (
+                            <span className="num font-semibold text-success">Gets back {fmt(b.netCents, group.currency)}</span>
+                          ) : (
+                            <span className="num font-semibold text-danger">
+                              Owes {fmt(-b.netCents, group.currency)}
+                              {b.pendingCents > 0 && <span className="block text-xs font-normal text-muted">{fmt(b.pendingCents, group.currency)} requested</span>}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div className="flex gap-6 text-right">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-brand-100">Spent</p>
-                <p className="text-2xl font-bold">{fmt(total, group.currency)}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-brand-100">To collect</p>
-                <p className="text-2xl font-bold">{fmt(owed, group.currency)}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-brand-100">Collected</p>
-                <p className="text-2xl font-bold">{fmt(paid, group.currency)}</p>
-              </div>
-            </div>
+
+            <AddExpense group={group} onAdded={setGroup} />
+            <SettleUp group={group} onChange={setGroup} />
+            <Ledger group={group} onChange={setGroup} />
+          </div>
+
+          <div className="xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
+            <AgentChat group={group} onChange={setGroup} />
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <ol className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-            {STAGES.map((s, i) => (
-              <li key={s} className="flex items-center gap-2">
-                <span
-                  className={`grid h-6 w-6 place-items-center rounded-full ${
-                    i < stage ? "bg-emerald-500 text-white" : i === stage ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  {i < stage ? "✓" : i + 1}
-                </span>
-                <span className={i <= stage ? "text-slate-800" : "text-slate-400"}>{s}</span>
-                {i < STAGES.length - 1 && <span className="mx-1 h-px w-6 bg-slate-200" />}
-              </li>
-            ))}
-          </ol>
-          <div className="flex items-center gap-3">
-            {paid + owed > 0 && (
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
-                </div>
-                {progress}% collected
-              </div>
-            )}
-            <button className="btn-ghost" onClick={() => setEditing((v) => !v)}>
-              {editing ? "Close" : "👥 People & emails"}
-            </button>
-          </div>
-        </div>
-      </div>
+      </PageBody>
 
-      {editing && <MembersEditor group={group} onSaved={(g) => (setGroup(g), setEditing(false))} />}
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {balances.map((b) => (
-          <div key={b.member.id} className="card p-4">
-            <p className="truncate text-sm font-semibold">
-              {b.member.name} {b.member.isOrganizer && <span className="ml-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] text-brand-700">ORGANISER</span>}
-            </p>
-            <p className={`mt-1 text-2xl font-bold ${b.netCents < 0 ? "text-rose-600" : b.netCents > 0 ? "text-emerald-600" : "text-slate-400"}`}>
-              {b.netCents < 0 ? "owes " : b.netCents > 0 ? "gets " : ""}
-              {fmt(Math.abs(b.netCents), group.currency)}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              paid {fmt(b.paidCents, group.currency)} · share {fmt(b.shareCents, group.currency)}
-              {b.pendingCents > 0 && <> · {fmt(b.pendingCents, group.currency)} requested</>}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-        <div className="space-y-6">
-          <AddExpense group={group} onAdded={setGroup} />
-          <SettleUp group={group} onChange={setGroup} />
-          <Ledger group={group} onChange={setGroup} />
-        </div>
-        <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
-          <AgentChat group={group} onChange={setGroup} />
-        </div>
-      </div>
-    </div>
+      <MembersEditor group={group} open={editing} onClose={() => setEditing(false)} onSaved={(g) => (setGroup(g), setEditing(false))} />
+    </>
   );
 }

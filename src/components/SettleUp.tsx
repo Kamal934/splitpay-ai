@@ -1,28 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { computeBalances, fmt, simplifyDebts } from "@/lib/money";
+import { fmt, simplifyDebts } from "@/lib/money";
+import { groupStats, timeAgo } from "@/lib/stats";
 import type { Group, PaymentRequest } from "@/lib/types";
-import { OPEN_STATUSES, PAID_STATUSES } from "@/lib/types";
+import { OPEN_STATUSES } from "@/lib/types";
 import { api } from "./api";
+import { Alert, Avatar, Dialog, EmptyState, SectionHeader, Spinner, StatusBadge } from "./ui";
 
 type Log = { kind: string; detail: string; ok: boolean };
-
-const badge = (s: PaymentRequest["status"]) =>
-  PAID_STATUSES.includes(s)
-    ? "bg-emerald-100 text-emerald-800"
-    : s === "ERROR" || s === "CANCELLED"
-      ? "bg-rose-100 text-rose-800"
-      : "bg-amber-100 text-amber-800";
 
 export default function SettleUp({ group, onChange }: { group: Group; onChange: (g: Group) => void }) {
   const [busy, setBusy] = useState("");
   const [log, setLog] = useState<Log[]>([]);
   const [err, setErr] = useState("");
-  const balances = computeBalances(group);
-  const transfers = simplifyDebts(balances);
-  const toRequest = balances.filter((b) => b.requestableCents > 0);
-  const name = (id: string) => group.members.find((m) => m.id === id)?.name ?? "?";
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState<PaymentRequest | null>(null);
+
+  const s = groupStats(group);
+  const transfers = simplifyDebts(s.balances);
+  const toRequest = s.balances.filter((b) => b.requestableCents > 0);
+  const member = (id: string) => group.members.find((m) => m.id === id);
+  const hasOpen = group.requests.some((r) => OPEN_STATUSES.includes(r.status));
+  const requests = [...group.requests].reverse();
 
   async function act(key: string, body: Record<string, unknown>) {
     setBusy(key);
@@ -30,7 +30,7 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
     try {
       const r = await api<{ group: Group; log: Log[] }>(`/api/groups/${group.id}/requests`, { method: "POST", body });
       onChange(r.group);
-      setLog(r.log.length ? r.log : [{ kind: "info", detail: "No changes", ok: true }]);
+      setLog(r.log.length ? r.log : [{ kind: "info", detail: "Everything is up to date. No status changed in PayPal.", ok: true }]);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -38,97 +38,214 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
     }
   }
 
-  const requests = [...group.requests].reverse();
-
   return (
-    <section className="card p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">Settle up with PayPal</h2>
-        <div className="flex gap-2">
-          <button className="btn-ghost" disabled={!!busy || !group.requests.some((r) => OPEN_STATUSES.includes(r.status))} onClick={() => act("refresh", { action: "refresh" })}>
-            {busy === "refresh" ? "Checking…" : "↻ Check payments"}
-          </button>
-          <button className="btn-primary" disabled={!!busy || toRequest.length === 0} onClick={() => act("send", { action: "send" })}>
-            {busy === "send" ? "Sending invoices…" : `Send PayPal requests (${toRequest.length})`}
-          </button>
-        </div>
+    <section className="card">
+      <div className="card-pad border-b border-line">
+        <SectionHeader
+          title="PayPal payments"
+          description="Each person gets a PayPal invoice for exactly what the ledger says they owe."
+          actions={
+            <>
+              <button className="btn-secondary" disabled={!!busy || !hasOpen} onClick={() => act("refresh", { action: "refresh" })}>
+                {busy === "refresh" ? <Spinner /> : "↻"} Check payments
+              </button>
+              <button className="btn-primary" disabled={!!busy || toRequest.length === 0} onClick={() => setConfirmSend(true)}>
+                {busy === "send" && <Spinner />} Request {toRequest.length > 0 ? fmt(s.notRequested, group.currency) : "payments"}
+              </button>
+            </>
+          }
+        />
       </div>
 
-      {transfers.length === 0 ? (
-        <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">🎉 Everyone is settled up.</p>
-      ) : (
-        <ul className="mb-4 grid gap-2 sm:grid-cols-2">
-          {transfers.map((t, i) => (
-            <li key={i} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
-              <span>
-                <b>{t.from.name}</b> → {t.to.name}
-              </span>
-              <b>{fmt(t.cents, group.currency)}</b>
-            </li>
-          ))}
-        </ul>
+      {/* Summary */}
+      <div className="grid grid-cols-2 divide-line border-b border-line sm:grid-cols-4 sm:divide-x">
+        {[
+          ["Requested", s.pending + s.collected, "text-ink"],
+          ["Paid", s.collected, "text-success"],
+          ["Pending", s.pending, "text-warning"],
+          ["Not requested", s.notRequested, "text-ink"],
+        ].map(([label, v, c]) => (
+          <div key={label as string} className="px-5 py-4 sm:px-6">
+            <p className="text-xs text-muted">{label as string}</p>
+            <p className={`num mt-0.5 text-lg font-semibold ${c}`}>{fmt(v as number, group.currency)}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Who owes whom */}
+      {transfers.length > 0 && (
+        <div className="card-pad border-b border-line">
+          <p className="label">Suggested settle-up</p>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {transfers.map((t, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <Avatar id={t.from.id} name={t.from.name} size="sm" />
+                  <span className="truncate font-medium text-ink">{t.from.name}</span>
+                  <span className="text-muted">→</span>
+                  <span className="truncate text-muted">{t.to.name}</span>
+                </span>
+                <span className="num text-sm font-semibold text-ink">{fmt(t.cents, group.currency)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      {requests.length > 0 && (
+      {/* Invoice table */}
+      {requests.length === 0 ? (
+        <EmptyState
+          icon="📨"
+          title={transfers.length ? "No PayPal requests yet" : "Nothing to collect"}
+          text={transfers.length ? "When you're ready, request payments and each person gets a PayPal invoice." : "Add an expense and anyone who owes you will show up here."}
+        />
+      ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-slate-500">
+          <table className="w-full min-w-[600px]">
+            <thead className="border-b border-line bg-slate-50/70">
               <tr>
-                <th className="py-2">Person</th>
-                <th>Amount</th>
-                <th>PayPal status</th>
-                <th className="text-right">Actions</th>
+                <th className="th">Person</th>
+                <th className="th text-right">Amount</th>
+                <th className="th">Status</th>
+                <th className="th text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {requests.map((r) => (
-                <tr key={r.id}>
-                  <td className="py-2 font-medium">{name(r.memberId)}</td>
-                  <td>{fmt(r.cents, group.currency)}</td>
-                  <td>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge(r.status)}`} title={r.error}>
-                      {r.status.replaceAll("_", " ")}
-                    </span>
-                    {r.remindersSent > 0 && <span className="ml-1 text-xs text-slate-400">· {r.remindersSent} reminder(s)</span>}
-                    {r.error && <p className="max-w-xs truncate text-xs text-rose-600">{r.error}</p>}
-                  </td>
-                  <td className="space-x-2 text-right whitespace-nowrap">
-                    {r.payerUrl && (
-                      <a className="text-xs font-semibold text-brand-600 hover:underline" href={r.payerUrl} target="_blank" rel="noreferrer">
-                        Payer link ↗
-                      </a>
-                    )}
-                    {OPEN_STATUSES.includes(r.status) && (
-                      <>
-                        <button className="text-xs font-semibold text-slate-600 hover:text-brand-600" disabled={!!busy} onClick={() => act(r.id, { action: "remind", requestId: r.id })}>
-                          Remind
-                        </button>
-                        <button className="text-xs font-semibold text-slate-400 hover:text-rose-600" disabled={!!busy} onClick={() => act(r.id, { action: "cancel", requestId: r.id })}>
-                          Cancel
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-line">
+              {requests.map((r) => {
+                const m = member(r.memberId);
+                const open = OPEN_STATUSES.includes(r.status);
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50/60">
+                    <td className="td">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar id={r.memberId} name={m?.name ?? "?"} size="sm" />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-ink">{m?.name}</p>
+                          <p className="truncate text-xs text-muted">{m?.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="td num text-right font-medium text-ink">{fmt(r.cents, group.currency)}</td>
+                    <td className="td">
+                      <StatusBadge status={r.status} title={r.error} />
+                      <p className="mt-1 text-xs text-muted">
+                        Updated {timeAgo(r.updatedAt)}
+                        {r.remindersSent > 0 && ` · ${r.remindersSent} reminder${r.remindersSent > 1 ? "s" : ""}`}
+                      </p>
+                      {r.error && <p className="mt-1 max-w-[220px] truncate text-xs text-danger" title={r.error}>{r.error}</p>}
+                    </td>
+                    <td className="td">
+                      <div className="flex justify-end gap-0.5 whitespace-nowrap">
+                        {r.payerUrl && (
+                          <a className="btn-ghost px-2" title="Open the PayPal invoice" href={r.payerUrl} target="_blank" rel="noreferrer">
+                            Invoice ↗
+                          </a>
+                        )}
+                        {open && (
+                          <>
+                            <button className="btn-ghost px-2" disabled={!!busy} onClick={() => act(r.id, { action: "remind", requestId: r.id })}>
+                              {busy === r.id ? <Spinner /> : null} Remind
+                            </button>
+                            <button className="btn-ghost px-2 hover:text-danger" disabled={!!busy} onClick={() => setConfirmCancel(r)}>
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {log.length > 0 && (
-        <ul className="mt-3 space-y-1 text-xs">
-          {log.map((l, i) => (
-            <li key={i} className={l.ok ? "text-emerald-700" : "text-rose-700"}>
-              {l.ok ? "✓" : "✗"} {l.detail}
+      {(log.length > 0 || err) && (
+        <div className="space-y-2 border-t border-line p-4">
+          {log.length > 0 && (
+            <Alert tone={log.every((l) => l.ok) ? "success" : "warning"}>
+              <ul className="space-y-0.5">
+                {log.map((l, i) => (
+                  <li key={i}>
+                    {l.ok ? "✓" : "✕"} {l.detail}
+                  </li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+          {err && <Alert>{err}</Alert>}
+        </div>
+      )}
+
+      <Dialog
+        open={confirmSend}
+        onClose={() => setConfirmSend(false)}
+        title="Send PayPal requests?"
+        footer={
+          <>
+            <button className="btn-secondary" onClick={() => setConfirmSend(false)}>
+              Not now
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setConfirmSend(false);
+                act("send", { action: "send" });
+              }}
+            >
+              Send {toRequest.length} invoice{toRequest.length === 1 ? "" : "s"}
+            </button>
+          </>
+        }
+      >
+        <p>Each person gets a PayPal invoice from you for their share:</p>
+        <ul className="mt-3 divide-y divide-line rounded-lg border border-line">
+          {toRequest.map((b) => (
+            <li key={b.member.id} className="flex items-center justify-between gap-3 px-3 py-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <Avatar id={b.member.id} name={b.member.name} size="sm" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-ink">{b.member.name}</span>
+                  <span className="block truncate text-xs">{b.member.email}</span>
+                </span>
+              </span>
+              <span className="num text-sm font-semibold text-ink">{fmt(b.requestableCents, group.currency)}</span>
             </li>
           ))}
         </ul>
-      )}
-      {err && <p className="mt-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</p>}
-      <p className="mt-3 text-xs text-slate-400">
-        Each person gets a PayPal invoice from the organiser for exactly what the ledger says they owe. Amounts can’t be changed by the AI.
-      </p>
+        <p className="mt-3 text-xs">These amounts come from the ledger. The AI can&apos;t change them.</p>
+      </Dialog>
+
+      <Dialog
+        open={!!confirmCancel}
+        onClose={() => setConfirmCancel(null)}
+        title="Cancel this PayPal request?"
+        footer={
+          <>
+            <button className="btn-secondary" onClick={() => setConfirmCancel(null)}>
+              Keep it
+            </button>
+            <button
+              className="btn-danger"
+              onClick={() => {
+                const r = confirmCancel!;
+                setConfirmCancel(null);
+                act(r.id, { action: "cancel", requestId: r.id });
+              }}
+            >
+              Cancel request
+            </button>
+          </>
+        }
+      >
+        {confirmCancel && (
+          <p>
+            PayPal will cancel the {fmt(confirmCancel.cents, group.currency)} invoice to <b className="text-ink">{member(confirmCancel.memberId)?.name}</b> and let them know.
+            Their balance will show as owed again.
+          </p>
+        )}
+      </Dialog>
     </section>
   );
 }

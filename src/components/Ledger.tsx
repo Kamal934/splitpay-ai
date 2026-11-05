@@ -2,17 +2,26 @@
 
 import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { fmt } from "@/lib/money";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
+import { Dialog, Spinner } from "./ui";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 const theme = themeQuartz.withParams({
-  accentColor: "#1d4ed8",
-  borderRadius: 10,
-  headerFontWeight: 600,
+  accentColor: "#7c3aed",
+  borderColor: "#e5e7eb",
+  borderRadius: 8,
+  wrapperBorderRadius: 8,
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#64748b",
+  headerFontWeight: 500,
+  headerFontSize: 12,
+  fontSize: 13,
+  foregroundColor: "#111827",
+  rowHoverColor: "#f5f3ff",
   fontFamily: "inherit",
 });
 
@@ -28,6 +37,8 @@ type Row = {
 };
 
 export default function Ledger({ group, onChange }: { group: Group; onChange: (g: Group) => void }) {
+  const [toDelete, setToDelete] = useState<Row | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const name = (id: string) => group.members.find((m) => m.id === id)?.name ?? "?";
 
   const rows: Row[] = useMemo(
@@ -39,7 +50,7 @@ export default function Ledger({ group, onChange }: { group: Group; onChange: (g
           description: e.description,
           paidBy: name(e.paidBy),
           total: e.totalCents,
-          source: e.source === "receipt" ? "📸 Receipt" : "✍️ Manual",
+          source: e.source === "receipt" ? "Receipt scan" : "Manual",
           split: e.aiExplanation || e.splitInstruction || "",
         };
         for (const m of group.members) r[`m_${m.id}`] = e.shares.find((s) => s.memberId === m.id)?.cents ?? 0;
@@ -72,13 +83,11 @@ export default function Ledger({ group, onChange }: { group: Group; onChange: (g
         width: 70,
         sortable: false,
         filter: false,
-        cellRenderer: (p: { data: Row }) => (
+        cellRenderer: (p: { data: Row }) =>
+          p.data.id === "total" ? null : (
           <button
-            className="text-xs text-slate-400 hover:text-rose-600"
-            onClick={async () => {
-              if (!confirm(`Delete "${p.data.description}"?`)) return;
-              onChange(await api<Group>(`/api/groups/${group.id}/expenses?expenseId=${p.data.id}`, { method: "DELETE" }));
-            }}
+            className="text-xs font-medium text-muted hover:text-danger"
+            onClick={() => setToDelete(p.data)}
           >
             Delete
           </button>
@@ -99,12 +108,15 @@ export default function Ledger({ group, onChange }: { group: Group; onChange: (g
   }, [rows, group.members]);
 
   return (
-    <section className="card p-5">
-      <h2 className="mb-1 text-lg font-bold">Group ledger</h2>
-      <p className="mb-3 text-xs text-slate-500">Each person’s share of every expense. Hover an expense to see how the AI split it.</p>
-      <div style={{ height: Math.min(140 + rows.length * 42, 460) }}>
+    <section className="card card-pad">
+      <div className="mb-4">
+        <h2 className="text-base font-semibold text-ink">Group ledger</h2>
+        <p className="mt-0.5 text-sm text-muted">Each person&apos;s share of every expense. Hover an expense to see how the AI split it.</p>
+      </div>
+      <div>
         <AgGridReact<Row>
           theme={theme}
+          domLayout="autoHeight"
           rowData={rows}
           columnDefs={cols}
           pinnedBottomRowData={rows.length ? totals : []}
@@ -114,6 +126,38 @@ export default function Ledger({ group, onChange }: { group: Group; onChange: (g
           overlayNoRowsTemplate="No expenses yet. Snap a receipt to get started."
         />
       </div>
+      <Dialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        title="Delete this expense?"
+        footer={
+          <>
+            <button className="btn-secondary" onClick={() => setToDelete(null)}>
+              Keep it
+            </button>
+            <button
+              className="btn-danger"
+              disabled={deleting}
+              onClick={async () => {
+                if (!toDelete) return;
+                setDeleting(true);
+                try {
+                  onChange(await api<Group>(`/api/groups/${group.id}/expenses?expenseId=${toDelete.id}`, { method: "DELETE" }));
+                  setToDelete(null);
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting && <Spinner />} Delete
+            </button>
+          </>
+        }
+      >
+        <p>
+          “{toDelete?.description}” will be removed and everyone&apos;s balance recalculated. PayPal requests that were already sent are not changed.
+        </p>
+      </Dialog>
     </section>
   );
 }
