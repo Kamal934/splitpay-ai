@@ -41,9 +41,13 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
 
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth" }), [turns, busy]);
+  // Scroll only the chat panel, never the page.
+  useEffect(() => {
+    const el = box.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [turns, busy]);
 
   async function send(text: string) {
     if (!text.trim() || busy) return;
@@ -71,7 +75,7 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
         <h2 className="font-bold">🤖 SplitPay Agent</h2>
         <p className="text-xs text-slate-500">Claude + PayPal Agent Toolkit · acts on your group in real time</p>
       </div>
-      <div className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
+      <div ref={box} className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
         {turns.map((t, i) => (
           <div key={i} className={t.role === "user" ? "flex justify-end" : ""}>
             <div className={`max-w-[90%] rounded-2xl px-3 py-2 ${t.role === "user" ? "bg-brand-600 text-white" : "bg-slate-100"}`}>
@@ -89,7 +93,6 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
           </div>
         ))}
         {busy && <div className="w-fit animate-pulse rounded-2xl bg-slate-100 px-3 py-2 text-slate-500">Thinking and working with PayPal…</div>}
-        <div ref={end} />
       </div>
       <div className="border-t border-slate-100 p-3">
         <div className="mb-2 flex flex-wrap gap-1">

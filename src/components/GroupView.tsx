@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { computeBalances, fmt } from "@/lib/money";
+import { computeBalances, fmt, initials } from "@/lib/money";
 import type { Group } from "@/lib/types";
+import { PAID_STATUSES } from "@/lib/types";
 import AddExpense from "./AddExpense";
 import AgentChat from "./AgentChat";
 import { api } from "./api";
@@ -22,28 +23,84 @@ export default function GroupView({ id }: { id: string }) {
 
   useEffect(reload, [reload]);
 
-  if (err) return <p className="card p-6 text-red-700">{err}</p>;
-  if (!group) return <p className="p-6 text-slate-500">Loading…</p>;
+  if (err) return <p className="card m-6 p-6 text-red-700">{err}</p>;
+  if (!group) return <p className="mx-auto max-w-7xl p-6 text-slate-500">Loading…</p>;
 
   const balances = computeBalances(group);
   const total = group.expenses.reduce((a, e) => a + e.totalCents, 0);
   const owed = balances.reduce((a, b) => a + b.requestableCents + b.pendingCents, 0);
+  const paid = group.requests.filter((r) => PAID_STATUSES.includes(r.status)).reduce((a, r) => a + r.cents, 0);
+  const progress = paid + owed > 0 ? Math.round((paid / (paid + owed)) * 100) : 0;
+  const stage = group.expenses.length === 0 ? 0 : group.requests.length === 0 ? 1 : owed > 0 ? 2 : 3;
+  const STAGES = ["Add expenses", "Send PayPal requests", "Collect payments", "Settled"];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Link href="/" className="text-sm text-slate-500 hover:text-brand-600">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+      <div className="card overflow-hidden">
+        <div className="bg-gradient-to-r from-brand-600 to-indigo-600 px-6 py-6 text-white">
+          <Link href="/app" className="text-sm text-brand-100 hover:text-white">
             ← All groups
           </Link>
-          <h1 className="text-3xl font-extrabold tracking-tight">{group.name}</h1>
-          <p className="text-sm text-slate-500">
-            {group.members.length} people · {fmt(total, group.currency)} spent · {fmt(owed, group.currency)} still to collect
-          </p>
+          <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight">{group.name}</h1>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {group.members.map((m) => (
+                    <span key={m.id} title={m.name} className="grid h-8 w-8 place-items-center rounded-full border-2 border-indigo-600 bg-white text-[11px] font-bold text-brand-700">
+                      {initials(m.name)}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-sm text-brand-100">{group.members.length} people</span>
+              </div>
+            </div>
+            <div className="flex gap-6 text-right">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-brand-100">Spent</p>
+                <p className="text-2xl font-bold">{fmt(total, group.currency)}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-brand-100">To collect</p>
+                <p className="text-2xl font-bold">{fmt(owed, group.currency)}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-brand-100">Collected</p>
+                <p className="text-2xl font-bold">{fmt(paid, group.currency)}</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <button className="btn-ghost" onClick={() => setEditing((v) => !v)}>
-          {editing ? "Close" : "Edit people & emails"}
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <ol className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+            {STAGES.map((s, i) => (
+              <li key={s} className="flex items-center gap-2">
+                <span
+                  className={`grid h-6 w-6 place-items-center rounded-full ${
+                    i < stage ? "bg-emerald-500 text-white" : i === stage ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  {i < stage ? "✓" : i + 1}
+                </span>
+                <span className={i <= stage ? "text-slate-800" : "text-slate-400"}>{s}</span>
+                {i < STAGES.length - 1 && <span className="mx-1 h-px w-6 bg-slate-200" />}
+              </li>
+            ))}
+          </ol>
+          <div className="flex items-center gap-3">
+            {paid + owed > 0 && (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+                </div>
+                {progress}% collected
+              </div>
+            )}
+            <button className="btn-ghost" onClick={() => setEditing((v) => !v)}>
+              {editing ? "Close" : "👥 People & emails"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {editing && <MembersEditor group={group} onSaved={(g) => (setGroup(g), setEditing(false))} />}

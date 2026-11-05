@@ -248,7 +248,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
                 {plan.unmatched_names.length > 0 && (
                   <p className="mt-2 rounded-lg bg-rose-50 p-2 text-sm text-rose-700">
                     ⚠ <b>{plan.unmatched_names.join(", ")}</b> {plan.unmatched_names.length > 1 ? "aren't" : "isn't"} in this group. Click{" "}
-                    <b>Edit people &amp; emails</b> at the top to add or rename someone, then press Split with AI again.
+                    <b>👥 People &amp; emails</b> at the top to add or rename someone, then press Split with AI again.
                   </p>
                 )}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">

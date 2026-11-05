@@ -71,7 +71,7 @@ Browser (Next.js + React + Tailwind + AG Grid)
 Requirements: Node.js 20+, a free [PayPal Developer](https://developer.paypal.com) account, an [Anthropic API key](https://console.anthropic.com).
 
 ```bash
-git clone <this repo>
+git clone https://github.com/Kamal934/splitpay-ai.git
 cd splitpay-ai
 npm install
 cp .env.example .env.local   # then fill in the values
@@ -84,7 +84,7 @@ npm run dev                  # http://localhost:3000
 3. Create 2–3 **Personal** sandbox accounts and use their emails for your friends (or put them in `DEMO_EMAIL_1..3`). You can then open the invoice's payer link, log in as that personal account and pay it with sandbox money. Click **Check payments** in SplitPay and the status changes to PAID.
 
 ### Try it in 60 seconds
-1. Open the app → **Try the demo trip**.
+1. Open the site → **Try the live demo** (or **Open app → Load demo trip**).
 2. Upload `public/samples/goa-dinner-receipt.png`.
 3. Type: *"Raj doesn't drink, Priya had both brownies, Sam is vegetarian so no prawns or fish, tip split equally"* → **Split with AI** → **Save**.
 4. **Send PayPal requests**, or ask the agent: *"Send PayPal requests to everyone who owes"*.

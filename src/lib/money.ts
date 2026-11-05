@@ -89,3 +89,9 @@ export function simplifyDebts(balances: Balance[]): Transfer[] {
   }
   return out;
 }
+
+/** "Raj Mehta" -> "RM", "You (Organiser)" -> "YO". Letters only. */
+export function initials(name: string) {
+  const words = name.replace(/[^\p{L}\s]/gu, " ").split(/\s+/).filter(Boolean);
+  return (words.map((w) => w[0]).join("").slice(0, 2) || "?").toUpperCase();
+}
