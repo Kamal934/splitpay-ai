@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Group } from "@/lib/types";
+import { duplicateEmailRows, memberProblems } from "@/lib/members";
 import { api } from "./api";
 import { Alert, Avatar, Dialog, Spinner } from "./ui";
 
@@ -34,6 +35,10 @@ export default function MembersEditor({ group, open, onClose, onSaved }: { group
   }
 
   const set = (i: number, patch: Partial<Row>) => setRows(rows.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  // Validate exactly what will be saved: existing people plus any filled-in new rows.
+  const toSave = rows.filter((r) => r.id || r.name.trim() || r.email.trim());
+  const problems = memberProblems(toSave);
+  const dupRows = duplicateEmailRows(rows);
 
   return (
     <Dialog
@@ -46,7 +51,7 @@ export default function MembersEditor({ group, open, onClose, onSaved }: { group
           <button className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-primary" onClick={save} disabled={busy}>
+          <button className="btn-primary" onClick={save} disabled={busy || problems.length > 0}>
             {busy && <Spinner />} Save changes
           </button>
         </>
@@ -58,7 +63,15 @@ export default function MembersEditor({ group, open, onClose, onSaved }: { group
           <div key={r.id ?? `new-${i}`} className="flex items-center gap-2">
             <Avatar id={r.id} name={r.name || "?"} size="sm" />
             <input className="input" placeholder="Name" aria-label="Name" value={r.name} onChange={(e) => set(i, { name: e.target.value })} />
-            <input className="input" type="email" placeholder="PayPal email" aria-label="PayPal email" value={r.email} onChange={(e) => set(i, { email: e.target.value })} />
+            <input
+              className={`input ${dupRows.has(i) ? "border-danger ring-3 ring-red-100" : ""}`}
+              type="email"
+              placeholder="PayPal email"
+              aria-label="PayPal email"
+              aria-invalid={dupRows.has(i)}
+              value={r.email}
+              onChange={(e) => set(i, { email: e.target.value })}
+            />
           </div>
         ))}
       </div>
@@ -66,6 +79,17 @@ export default function MembersEditor({ group, open, onClose, onSaved }: { group
         + Add person
       </button>
       <p className="mt-2 text-xs">New people start with nothing owed. Earlier expenses aren&apos;t re-split, so add people before adding their expenses.</p>
+      {problems.length > 0 && (
+        <div className="mt-3">
+          <Alert tone="warning">
+            <ul className="space-y-0.5">
+              {problems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </Alert>
+        </div>
+      )}
       {err && (
         <div className="mt-3">
           <Alert>{err}</Alert>

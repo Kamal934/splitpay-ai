@@ -9,6 +9,7 @@ import { PageBody, PageHeader } from "@/components/AppShell";
 import CollectionBar from "@/components/CollectionBar";
 import DemoButton from "@/components/DemoButton";
 import { Alert, AvatarStack, Badge, EmptyState, SectionHeader } from "@/components/ui";
+import { duplicateEmailRows } from "@/lib/members";
 import { fmt } from "@/lib/money";
 import { groupStats, recentActivity, timeAgo } from "@/lib/stats";
 import type { Group } from "@/lib/types";
@@ -59,6 +60,7 @@ export default function Dashboard() {
     }
   }
 
+  const dupRows = duplicateEmailRows(members);
   const all = groups ?? [];
   const stats = all.map((g) => ({ g, s: groupStats(g) }));
   const sum = (k: "spent" | "collected" | "pending" | "notRequested") => stats.reduce((a, x) => a + x.s[k], 0);
@@ -164,7 +166,8 @@ export default function Dashboard() {
                       onChange={(e) => setMembers(members.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))}
                     />
                     <input
-                      className="input"
+                      className={`input ${dupRows.has(i) ? "border-danger ring-3 ring-red-100" : ""}`}
+                      aria-invalid={dupRows.has(i)}
                       type="email"
                       placeholder="PayPal email"
                       value={m.email}
@@ -176,9 +179,10 @@ export default function Dashboard() {
                   + Add person
                 </button>
               </div>
+              {dupRows.size > 0 && <Alert tone="warning">Each person needs their own PayPal email. Two rows use the same one.</Alert>}
               {err && <Alert>{err}</Alert>}
               <div className="flex justify-end">
-                <button className="btn-primary" disabled={busy}>
+                <button className="btn-primary" disabled={busy || dupRows.size > 0}>
                   {busy ? "Creating…" : "Create group"}
                 </button>
               </div>
