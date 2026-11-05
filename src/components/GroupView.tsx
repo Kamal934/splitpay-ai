@@ -7,6 +7,7 @@ import { groupStats } from "@/lib/stats";
 import type { Group } from "@/lib/types";
 import AddExpense from "./AddExpense";
 import AgentChat from "./AgentChat";
+import AutopilotPanel from "./AutopilotPanel";
 import { api } from "./api";
 import { PageBody, PageHeader } from "./AppShell";
 import CollectionBar from "./CollectionBar";
@@ -25,6 +26,14 @@ export default function GroupView({ id }: { id: string }) {
   }, [id]);
 
   useEffect(reload, [reload]);
+
+  // While autopilot is on, refresh every 20s so its work shows up live.
+  const autopilotOn = !!group?.autopilot?.enabled;
+  useEffect(() => {
+    if (!autopilotOn) return;
+    const t = setInterval(reload, 20000);
+    return () => clearInterval(t);
+  }, [autopilotOn, reload]);
 
   if (err)
     return (
@@ -136,6 +145,7 @@ export default function GroupView({ id }: { id: string }) {
 
             <AddExpense group={group} onAdded={setGroup} />
             <SettleUp group={group} onChange={setGroup} />
+            <AutopilotPanel group={group} onChange={setGroup} />
             <Ledger group={group} onChange={setGroup} />
           </div>
 

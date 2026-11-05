@@ -127,3 +127,52 @@ export async function planSplit(
   if (!res.parsed_output) throw new Error("Couldn't understand the split instruction.");
   return res.parsed_output;
 }
+
+// ---------- 3. Autopilot reminder copy (structured output) ----------
+
+const ReminderSchema = z.object({
+  subject: z.string().describe("Email subject line, under 70 characters"),
+  note: z.string().describe("The reminder message, 1-3 short sentences, under 400 characters"),
+});
+
+/**
+ * Writes the text of an autopilot reminder. Tone escalates with each attempt
+ * but always stays kind. The amount and names are facts passed in; the model
+ * only writes the wording.
+ */
+export async function writeReminder(p: {
+  name: string;
+  amount: string;
+  groupName: string;
+  attempt: number;
+  maxAttempts: number;
+  organiser: string;
+  daysOpen: number;
+}) {
+  const stage = p.attempt === 1 ? "a light, friendly nudge" : p.attempt < p.maxAttempts ? "a clear but warm follow-up" : "a final, polite but direct reminder";
+  const res = await claude().beta.messages.parse({
+    model: MODEL,
+    max_tokens: 2000,
+    ...FALLBACK,
+    output_config: { effort: "low", format: zodOutputFormat(ReminderSchema) },
+    system:
+      "You write short payment reminders between friends who shared costs. Never guilt-trip, threaten or use pressure tactics. " +
+      "Use the exact amount and names given. Address the person by first name. No emojis. Do not invent details.",
+    messages: [
+      {
+        role: "user",
+        content:
+          `Write ${stage} (reminder ${p.attempt} of ${p.maxAttempts}) to ${p.name} about their ${p.amount} share for "${p.groupName}". ` +
+          `It's been open ${p.daysOpen < 1 ? "less than a day" : `${Math.round(p.daysOpen)} day(s)`}. Sign off as ${p.organiser}. ` +
+          `They can pay with the PayPal invoice they already received.`,
+      },
+    ],
+  });
+  if (res.stop_reason === "refusal" || !res.parsed_output) {
+    return {
+      subject: `Reminder: your share for ${p.groupName}`,
+      note: `Hi ${p.name.split(" ")[0]}, just a reminder about your ${p.amount} share for ${p.groupName}. You can pay with the PayPal invoice you received. Thanks! ${p.organiser}`,
+    };
+  }
+  return res.parsed_output;
+}

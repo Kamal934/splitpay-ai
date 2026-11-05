@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Ban, Bell, CircleAlert, CircleCheck, Receipt, RefreshCw, Send, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowUp, Ban, Bell, Hand, Zap, CircleAlert, CircleCheck, Receipt, RefreshCw, Send, Sparkles, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
@@ -9,7 +9,7 @@ import { Spinner } from "./ui";
 type Action = { kind: string; detail: string; ok: boolean };
 type Turn = { role: "user" | "assistant"; text: string; actions?: Action[]; error?: boolean };
 
-const SUGGESTIONS = ["Who still owes me money?", "Send PayPal requests to everyone who owes", "Has anyone paid? Remind whoever hasn't", "I paid $48 for the cab, split with everyone"];
+const SUGGESTIONS = ["Who still owes me money?", "Send PayPal requests to everyone who owes", "Has anyone paid? Remind whoever hasn't", "Turn on autopilot: remind every 2 days, max 3 times"];
 
 /** Labels describe what the backend confirmed, never more. */
 const ACTION_META: Record<string, { label: string; icon: LucideIcon; paypal: boolean }> = {
@@ -18,6 +18,9 @@ const ACTION_META: Record<string, { label: string; icon: LucideIcon; paypal: boo
   status: { label: "PayPal status update", icon: RefreshCw, paypal: true },
   cancel: { label: "PayPal cancellation", icon: Ban, paypal: true },
   expense: { label: "Ledger", icon: Receipt, paypal: false },
+  autopilot: { label: "Autopilot", icon: Zap, paypal: false },
+  handoff: { label: "Autopilot hand-off", icon: Hand, paypal: false },
+  check: { label: "Autopilot check", icon: Zap, paypal: false },
 };
 
 /** Minimal markdown: **bold** and "- " bullets. */

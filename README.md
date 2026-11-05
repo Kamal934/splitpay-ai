@@ -22,12 +22,16 @@ After every trip, flat-share month or group dinner, one person pays and then spe
 | 📊 **Group ledger** | Every expense and each person's share, with sorting, filtering and a totals row | AG Grid |
 | 📨 **Collect with PayPal** | One click sends each person a PayPal invoice for exactly what they owe; status syncs from PayPal | PayPal Agent Toolkit (Invoicing) |
 | 🤖 **Agent** | Chat: "Who still owes me?", "Remind whoever hasn't paid", "I paid $48 for the cab, split with Raj and Priya" | Claude tool use + PayPal Agent Toolkit |
+| ⚡ **Autopilot collection** | Set rules once (first reminder after X, repeat every Y, stop after N, per-person cap). A scheduler syncs PayPal, sends requests, and sends reminders whose wording Claude writes, getting firmer each time but always polite, then hands back to you | PayPal Agent Toolkit + Claude structured outputs |
+| 🧾 **Audit log** | Every action by you, the chat agent and autopilot is recorded with who did it | – |
 
 ### Guardrails (agentic payments done safely)
 - **The AI never sets amounts.** PayPal request amounts are always computed from the ledger; the agent can only pick *who* to request from.
 - **Per-request cap.** Requests above `MAX_REQUEST_CENTS` are blocked.
 - **No duplicate requests.** Amounts already requested (and still open) are subtracted.
 - **Check before nagging.** The agent refreshes PayPal status before sending reminders.
+- **Rules decide, AI writes.** Autopilot's actions are decided by deterministic rules; Claude only writes reminder wording.
+- **Hand-off, not harassment.** After the last reminder, autopilot stops and flags the person for the organiser.
 - **Refusal fallback.** Claude requests use server-side fallbacks so a classifier false-positive doesn't break a user action.
 
 ## Architecture
@@ -95,6 +99,7 @@ npm run dev                  # http://localhost:3000
 2. Build command `npm install && npm run build`, start command `npm start`.
 3. Add the environment variables from `.env.example`.
 4. Optional: add a persistent disk and set `DATA_DIR` to its mount path so groups survive restarts.
+5. Autopilot runs inside the web service (checks every minute). On hosts without a long-running process, set `AUTOPILOT_SCHEDULER=off` and call `POST /api/autopilot/tick` from a cron job with `Authorization: Bearer $CRON_SECRET`.
 
 ## What's next
 - PayPal **Payouts** so the organiser can pay back friends who fronted money (full many-to-many settlement)

@@ -1,6 +1,6 @@
 import { getGroup } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
-import { cancelRequest, refreshStatuses, remind, requestPayments, type ActionLog } from "@/lib/service";
+import { audit, cancelRequest, refreshStatuses, remind, requestPayments, type ActionLog } from "@/lib/service";
 
 export const maxDuration = 60;
 
@@ -20,6 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     else if (b.action === "remind") await remind(id, b.requestId, b.note || "Just a friendly nudge about your share. Thanks!", log);
     else if (b.action === "cancel") await cancelRequest(id, b.requestId, b.reason || "Cancelled by organiser", log);
     else throw new Error("Unknown action");
+    await audit(id, "you", log);
     return ok({ group: await getGroup(id), log });
   } catch (e) {
     return fail(e);

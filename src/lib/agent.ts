@@ -3,7 +3,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod/v4";
 import { claude, FALLBACK, MODEL } from "./ai";
-import { getGroup } from "./db";
+import { runAutopilot, settingsOf } from "./autopilot";
+import { getGroup, updateGroup } from "./db";
 import { computeBalances, fmt, simplifyDebts, toCents } from "./money";
 import { addExpense, cancelRequest, MAX_REQUEST_CENTS, refreshStatuses, remind, requestPayments, type ActionLog } from "./service";
 
@@ -36,6 +37,18 @@ async function summary(groupId: string) {
       reminders_sent: r.remindersSent,
       error: r.error,
     })),
+    autopilot: (() => {
+      const s = settingsOf(g);
+      return {
+        enabled: s.enabled,
+        auto_request: s.autoRequest,
+        first_reminder_after_minutes: s.firstAfterMin,
+        repeat_every_minutes: s.repeatEveryMin,
+        max_reminders: s.maxReminders,
+        last_run: s.lastRunAt,
+        last_summary: s.lastSummary,
+      };
+    })(),
   };
 }
 
@@ -120,6 +133,45 @@ function tools(groupId: string, log: ActionLog[]) {
         });
         log.push({ kind: "expense", detail: `Added "${i.description}" (${i.amount})`, ok: true });
         return "Expense added.";
+      },
+    }),
+    betaZodTool({
+      name: "configure_autopilot",
+      description:
+        "Turn autopilot collection on or off and set its rules. Autopilot runs on a schedule: it syncs PayPal, sends requests for anything owed, " +
+        "and sends reminders spaced by the rules until the reminder limit, then hands back to the organiser. Only change it when the user asks.",
+      inputSchema: z.object({
+        enabled: z.boolean(),
+        first_reminder_after_minutes: z.number().describe("Minutes after a request before the first reminder (1440 = 1 day)"),
+        repeat_every_minutes: z.number().describe("Minutes between later reminders"),
+        max_reminders: z.number().describe("1 to 5"),
+        auto_request: z.boolean().describe("Also send PayPal requests automatically for anything owed"),
+      }),
+      run: async (i) => {
+        const g = await getGroup(groupId);
+        const before = settingsOf(g!);
+        await updateGroup(groupId, (gg) => {
+          gg.autopilot = {
+            ...before,
+            enabled: i.enabled,
+            autoRequest: i.auto_request,
+            firstAfterMin: Math.max(1, Math.round(i.first_reminder_after_minutes)),
+            repeatEveryMin: Math.max(1, Math.round(i.repeat_every_minutes)),
+            maxReminders: Math.min(5, Math.max(1, Math.round(i.max_reminders))),
+          };
+        });
+        log.push({ kind: "autopilot", detail: i.enabled ? `Autopilot on: first reminder after ${i.first_reminder_after_minutes} min, then every ${i.repeat_every_minutes} min, max ${i.max_reminders}` : "Autopilot off", ok: true });
+        return "Saved.";
+      },
+    }),
+    betaZodTool({
+      name: "run_autopilot_now",
+      description: "Run one autopilot pass immediately (sync PayPal, send due requests and reminders under the current rules) and report what it did.",
+      inputSchema: z.object({}),
+      run: async () => {
+        const r = await runAutopilot(groupId);
+        log.push(...r.log);
+        return r.summary;
       },
     }),
   ];

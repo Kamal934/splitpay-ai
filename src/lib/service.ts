@@ -3,7 +3,7 @@ import { getGroup, newId, updateGroup } from "./db";
 import { computeBalances, fmt } from "./money";
 import { cancelInvoice, getInvoiceStatus, remindInvoice, sendInvoice } from "./paypal";
 import { computeShares } from "./split";
-import type { Expense, Group, PaymentRequest } from "./types";
+import type { AuditActor, Expense, Group, PaymentRequest } from "./types";
 import { OPEN_STATUSES } from "./types";
 
 /** Guardrail: the app (and the agent) can never request more than this from one person in one invoice. */
@@ -17,8 +17,25 @@ async function mustGroup(id: string): Promise<Group> {
 
 export type ActionLog = { kind: string; detail: string; ok: boolean };
 
+/** Append actions to the group's audit trail (newest first, capped). */
+export async function audit(groupId: string, actor: AuditActor, log: ActionLog[]) {
+  if (!log.length) return;
+  const at = new Date().toISOString();
+  await updateGroup(groupId, (g) => {
+    const entries = log.map((l) => ({ id: newId("aud"), at, actor, kind: l.kind, detail: l.detail, ok: l.ok }));
+    g.audit = [...entries.reverse(), ...(g.audit ?? [])].slice(0, 200);
+  });
+}
+
 /** Send PayPal invoices for whatever each member still owes the organiser. Amounts always come from the ledger. */
-export async function requestPayments(groupId: string, memberIds: string[] | undefined, note: string, log: ActionLog[] = []) {
+export async function requestPayments(
+  groupId: string,
+  memberIds: string[] | undefined,
+  note: string,
+  log: ActionLog[] = [],
+  capCents: number = MAX_REQUEST_CENTS,
+) {
+  const cap = Math.min(capCents, MAX_REQUEST_CENTS);
   const group = await mustGroup(groupId);
   const balances = computeBalances(group).filter(
     (b) => b.requestableCents > 0 && (!memberIds || memberIds.length === 0 || memberIds.includes(b.member.id)),
@@ -36,9 +53,9 @@ export async function requestPayments(groupId: string, memberIds: string[] | und
       createdAt: now,
       updatedAt: now,
     };
-    if (req.cents > MAX_REQUEST_CENTS) {
+    if (req.cents > cap) {
       req.status = "ERROR";
-      req.error = `Blocked by guardrail: over ${fmt(MAX_REQUEST_CENTS, group.currency)} limit`;
+      req.error = `Blocked by guardrail: over the ${fmt(cap, group.currency)} limit`;
       log.push({ kind: "request", detail: `${b.member.name}: ${req.error}`, ok: false });
     } else {
       try {
@@ -90,19 +107,21 @@ export async function refreshStatuses(groupId: string, log: ActionLog[] = []) {
   return g;
 }
 
-export async function remind(groupId: string, requestId: string, note: string, log: ActionLog[] = []) {
+export async function remind(groupId: string, requestId: string, note: string, log: ActionLog[] = [], subject?: string) {
   const group = await mustGroup(groupId);
   const r = group.requests.find((x) => x.id === requestId);
   if (!r?.invoiceId) throw new Error("Request not found");
   if (!OPEN_STATUSES.includes(r.status)) throw new Error(`Request is ${r.status}, nothing to remind`);
   const m = group.members.find((x) => x.id === r.memberId);
-  await remindInvoice(r.invoiceId, note, `Friendly reminder · ${group.name}`);
+  await remindInvoice(r.invoiceId, note, subject ?? `Friendly reminder · ${group.name}`);
+  const now = new Date().toISOString();
   await updateGroup(groupId, (g) => {
     const x = g.requests.find((y) => y.id === requestId)!;
     x.remindersSent += 1;
-    x.updatedAt = new Date().toISOString();
+    x.lastReminderAt = now;
+    x.updatedAt = now;
   });
-  log.push({ kind: "reminder", detail: `Reminded ${m?.name}`, ok: true });
+  log.push({ kind: "reminder", detail: `Reminded ${m?.name} (${r.remindersSent + 1} so far)`, ok: true });
 }
 
 export async function cancelRequest(groupId: string, requestId: string, reason: string, log: ActionLog[] = []) {
