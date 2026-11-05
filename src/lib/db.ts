@@ -55,6 +55,16 @@ export async function createGroup(group: Group): Promise<Group> {
   });
 }
 
+export async function deleteGroup(id: string): Promise<boolean> {
+  return withLock(async () => {
+    const db = await load();
+    const before = db.groups.length;
+    db.groups = db.groups.filter((g) => g.id !== id);
+    await save(db);
+    return db.groups.length < before;
+  });
+}
+
 /** Read-modify-write a group atomically. */
 export async function updateGroup(id: string, mutate: (g: Group) => void | Promise<void>): Promise<Group> {
   return withLock(async () => {

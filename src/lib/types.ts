@@ -17,7 +17,11 @@ export type ExpenseItem = {
   cents: number;
   /** Members who share this line. */
   memberIds: string[];
+  /** Relative share per member, same order as memberIds (missing on older data = equal). */
+  weights?: number[];
 };
+
+export type SplitModes = { tax: "proportional" | "equal"; tip: "proportional" | "equal" };
 
 export type Expense = {
   id: string;
@@ -28,6 +32,8 @@ export type Expense = {
   taxCents: number;
   tipCents: number;
   shares: ExpenseShare[];
+  /** How tax and tip were shared (missing on older data). */
+  modes?: SplitModes;
   splitInstruction?: string;
   aiExplanation?: string;
   source: "receipt" | "manual";

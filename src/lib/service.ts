@@ -164,6 +164,7 @@ export async function addExpense(groupId: string, input: NewExpense) {
       taxCents: input.taxCents,
       tipCents: input.tipCents,
       shares,
+      modes: input.modes,
       splitInstruction: input.splitInstruction,
       aiExplanation: input.aiExplanation,
       source: input.source,

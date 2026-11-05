@@ -1,5 +1,5 @@
 import { allocate } from "./money";
-import type { ExpenseItem, ExpenseShare, Member } from "./types";
+import type { Expense, ExpenseItem, ExpenseShare, Group, Member, SplitModes } from "./types";
 
 export type PlanItem = { index: number; member_ids: string[]; weights: number[] };
 
@@ -12,7 +12,7 @@ export function computeShares(
   plan: PlanItem[],
   taxCents: number,
   tipCents: number,
-  modes: { tax: "proportional" | "equal"; tip: "proportional" | "equal" },
+  modes: SplitModes,
   members: Member[],
 ): { items: ExpenseItem[]; shares: ExpenseShare[] } {
   const valid = new Set(members.map((m) => m.id));
@@ -21,15 +21,16 @@ export function computeShares(
 
   const outItems: ExpenseItem[] = items.map((it, i) => {
     const p = plan.find((x) => x.index === i);
-    let ids = (p?.member_ids ?? []).filter((id) => valid.has(id));
-    let weights = p?.weights ?? [];
+    const pairs = (p?.member_ids ?? []).map((id, k) => [id, p?.weights?.[k]] as const).filter(([id]) => valid.has(id));
+    let ids = pairs.map(([id]) => id);
+    let weights = pairs.map(([, w]) => w);
     if (ids.length === 0) {
       ids = everyone;
       weights = [];
     }
-    const w = ids.map((_, k) => (weights[k] && weights[k] > 0 ? weights[k] : 1));
+    const w = ids.map((_, k) => (weights[k] && weights[k]! > 0 ? weights[k]! : 1));
     allocate(it.cents, w).forEach((c, k) => perMember.set(ids[k], (perMember.get(ids[k]) ?? 0) + c));
-    return { name: it.name, cents: it.cents, memberIds: ids };
+    return { name: it.name, cents: it.cents, memberIds: ids, weights: w };
   });
 
   // Item subtotals per person, captured before extras are added.
@@ -46,4 +47,55 @@ export function computeShares(
 
   const shares = everyone.map((id) => ({ memberId: id, cents: perMember.get(id) ?? 0 })).filter((s) => s.cents !== 0);
   return { items: outItems, shares };
+}
+
+/* ---------- Adding people to existing expenses ---------- */
+
+const ALL_MODES: SplitModes[] = [
+  { tax: "proportional", tip: "proportional" },
+  { tax: "proportional", tip: "equal" },
+  { tax: "equal", tip: "proportional" },
+  { tax: "equal", tip: "equal" },
+];
+
+const sameShares = (a: ExpenseShare[], b: ExpenseShare[]) => {
+  const m = new Map(a.filter((s) => s.cents).map((s) => [s.memberId, s.cents]));
+  const n = b.filter((s) => s.cents);
+  return m.size === n.length && n.every((s) => m.get(s.memberId) === s.cents);
+};
+
+/**
+ * An expense is locked once a PayPal request has gone out after it was added:
+ * that request's amount included this expense, so re-splitting it would make
+ * already-requested (or already-paid) amounts wrong.
+ */
+export function expenseLock(group: Group, e: Expense): string | null {
+  const active = group.requests.filter((r) => r.status !== "CANCELLED" && r.status !== "ERROR" && r.createdAt >= e.createdAt);
+  if (!active.length) return null;
+  return active.some((r) => r.status === "PAID" || r.status === "MARKED_AS_PAID") ? "Already paid through PayPal" : "Already requested through PayPal";
+}
+
+export type Resplit = { ok: true; items: ExpenseItem[]; shares: ExpenseShare[]; modes: SplitModes } | { ok: false; reason: string };
+
+/**
+ * Re-splits an existing expense so new people share the items that *everyone*
+ * shared. Items only some people had stay as they were. Refuses unless the
+ * original shares can be rebuilt exactly first, so nothing is silently changed.
+ */
+export function resplitWithNewMembers(e: Expense, oldMembers: Member[], newMembers: Member[]): Resplit {
+  if (!newMembers.length) return { ok: false, reason: "No new people" };
+  const plan: PlanItem[] = e.items.map((it, i) => ({ index: i, member_ids: it.memberIds, weights: it.weights ?? it.memberIds.map(() => 1) }));
+  const cents = e.items.map((it) => ({ name: it.name, cents: it.cents }));
+  const modes = (e.modes ? [e.modes] : ALL_MODES).find((m) => sameShares(computeShares(cents, plan, e.taxCents, e.tipCents, m, oldMembers).shares, e.shares));
+  if (!modes) return { ok: false, reason: "Has custom shares, so edit it by hand" };
+
+  const oldIds = new Set(oldMembers.map((m) => m.id));
+  const isEveryone = (ids: string[]) => ids.length === oldIds.size && ids.every((id) => oldIds.has(id));
+  if (!e.items.some((it) => isEveryone(it.memberIds))) return { ok: false, reason: "Nothing in it was shared by everyone" };
+
+  const newPlan = plan.map((p, i) =>
+    isEveryone(e.items[i].memberIds) ? { ...p, member_ids: [...p.member_ids, ...newMembers.map((m) => m.id)], weights: [...p.weights, ...newMembers.map(() => 1)] } : p,
+  );
+  const out = computeShares(cents, newPlan, e.taxCents, e.tipCents, modes, [...oldMembers, ...newMembers]);
+  return { ok: true, items: out.items, shares: out.shares, modes };
 }

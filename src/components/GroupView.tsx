@@ -12,6 +12,7 @@ import AutopilotPanel from "./AutopilotPanel";
 import { api } from "./api";
 import { PageBody, PageHeader } from "./AppShell";
 import CollectionBar from "./CollectionBar";
+import DeleteGroup from "./DeleteGroup";
 import Ledger from "./Ledger";
 import MembersEditor from "./MembersEditor";
 import SettleUp from "./SettleUp";
@@ -93,9 +94,12 @@ export default function GroupView({ id, share }: { id: string; share?: string })
           </span>
         }
         actions={
-          <button className="btn-secondary" onClick={() => setEditing(true)}>
-            <Users className="h-4 w-4" aria-hidden /> People & emails
-          </button>
+          <>
+            <button className="btn-secondary" onClick={() => setEditing(true)}>
+              <Users className="h-4 w-4" aria-hidden /> People & emails
+            </button>
+            <DeleteGroup group={group} />
+          </>
         }
       />
 
