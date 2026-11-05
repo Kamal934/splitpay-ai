@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, CircleAlert, CircleCheck, MessageSquareText, Plus, Receipt, Sparkles, Upload, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fmt, toCents } from "@/lib/money";
 import { computeShares, type PlanItem } from "@/lib/split";
 import type { Group } from "@/lib/types";
@@ -27,7 +27,9 @@ type Plan = { items: PlanItem[]; tax_mode: Mode; tip_mode: Mode; explanation: st
 const EXAMPLES = ["Split everything equally", "Raj didn't drink, so no beer or wine for him", "Priya had both desserts, tip split equally"];
 const READ_STEPS = ["Uploading image", "Reading line items", "Checking totals"];
 
-export default function AddExpense({ group, onAdded }: { group: Group; onAdded: (g: Group) => void }) {
+export type Incoming = { kind: "chat"; text: string } | { kind: "image"; file: File };
+
+export default function AddExpense({ group, onAdded, incoming }: { group: Group; onAdded: (g: Group) => void; incoming?: Incoming | null }) {
   const organizer = group.members.find((m) => m.isOrganizer) ?? group.members[0];
   const fileRef = useRef<HTMLInputElement>(null);
   const [img, setImg] = useState("");
@@ -45,6 +47,21 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
   const [err, setErr] = useState("");
   const [saved, setSaved] = useState("");
   const [chatMode, setChatMode] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Something was shared into SplitPay from another app: open it straight away.
+  useEffect(() => {
+    if (!incoming) return;
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (incoming.kind === "chat") {
+      setChatText(incoming.text);
+      setChatMode(true);
+    } else {
+      void onFile(incoming.file);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
 
   const valid = useMemo(() => items.filter((i) => i.name.trim() && i.amount), [items]);
   const subtotal = valid.reduce((a, b) => a + (Number(b.amount) || 0), 0);
@@ -182,7 +199,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
   const hasDraft = items.length > 0 || !!img;
 
   return (
-    <section className="card">
+    <section ref={sectionRef} className="card scroll-mt-4">
       <div className="card-pad border-b border-line">
         <SectionHeader
           title="Add an expense"
@@ -200,11 +217,14 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
       <div className="card-pad space-y-6">
         {chatMode && (
           <ChatImport
+            key={chatText}
+            initialText={chatText}
             group={group}
-            onCancel={() => setChatMode(false)}
+            onCancel={() => (setChatMode(false), setChatText(""))}
             onDone={(g, n) => {
               onAdded(g);
               setChatMode(false);
+              setChatText("");
               setSaved(`Added ${n} expense${n === 1 ? "" : "s"} from the group chat`);
             }}
           />

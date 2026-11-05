@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
+import InstallApp from "./InstallApp";
 import Logo, { REPO } from "./Logo";
 import { Avatar } from "./ui";
 
@@ -55,6 +56,7 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
         </div>
       </nav>
       <div className="space-y-0.5 border-t border-line px-3 py-3">
+        <InstallApp />
         <NavLink href="/" active={false} onClick={onNavigate}>
           <House className={ICON} aria-hidden /> Product site
         </NavLink>

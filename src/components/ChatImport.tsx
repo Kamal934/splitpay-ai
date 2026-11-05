@@ -1,7 +1,7 @@
 "use client";
 
-import { CircleAlert, EyeOff, MessageSquareText, Quote, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CircleAlert, ClipboardPaste, EyeOff, FileText, MessageSquareText, Quote, Sparkles } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { fmt, toCents } from "@/lib/money";
 import { SAMPLE_CHAT } from "@/lib/samples";
 import { computeShares } from "@/lib/split";
@@ -38,8 +38,35 @@ type Row = {
   currency: string;
 };
 
-export default function ChatImport({ group, onDone, onCancel }: { group: Group; onDone: (g: Group, count: number) => void; onCancel: () => void }) {
-  const [text, setText] = useState("");
+export default function ChatImport({
+  group,
+  onDone,
+  onCancel,
+  initialText = "",
+}: {
+  group: Group;
+  onDone: (g: Group, count: number) => void;
+  onCancel: () => void;
+  initialText?: string;
+}) {
+  const [text, setText] = useState(initialText);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function pasteClipboard() {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t.trim()) setText(t);
+      else setErr("Your clipboard is empty. Copy the messages in WhatsApp first.");
+    } catch {
+      setErr("Couldn't read the clipboard. Long-press in the box below and choose Paste instead.");
+    }
+  }
+
+  async function openFile(f: File | undefined) {
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) return setErr("That file is too big. Export the chat without media.");
+    setText((await f.text()).slice(0, 20000));
+  }
   const [rows, setRows] = useState<Row[] | null>(null);
   const [ignored, setIgnored] = useState<Extracted["ignored"]>([]);
   const [unmatched, setUnmatched] = useState<string[]>([]);
@@ -143,9 +170,18 @@ export default function ChatImport({ group, onDone, onCancel }: { group: Group; 
           <label className="label mb-0" htmlFor="chat">
             Paste messages from your group chat
           </label>
-          <button className="btn-ghost text-brand-700" onClick={() => setText(SAMPLE_CHAT)}>
-            Use sample chat
-          </button>
+          <div className="flex flex-wrap gap-1">
+            <button className="btn-ghost" onClick={pasteClipboard}>
+              <ClipboardPaste className="h-4 w-4" aria-hidden /> Paste
+            </button>
+            <button className="btn-ghost" onClick={() => fileRef.current?.click()}>
+              <FileText className="h-4 w-4" aria-hidden /> Open .txt
+            </button>
+            <button className="btn-ghost text-brand-700" onClick={() => setText(SAMPLE_CHAT)}>
+              Use sample chat
+            </button>
+          </div>
+          <input ref={fileRef} type="file" accept=".txt,text/plain" className="hidden" onChange={(e) => openFile(e.target.files?.[0])} />
         </div>
         <textarea
           id="chat"
@@ -155,7 +191,7 @@ export default function ChatImport({ group, onDone, onCancel }: { group: Group; 
           onChange={(e) => setText(e.target.value)}
         />
         <p className="text-xs text-muted">
-          WhatsApp: open the chat, then More → Export chat → Without media, and paste the text here. Claude finds who paid for what. You review everything before it&apos;s saved.
+          WhatsApp: open the chat, then Export chat → Without media. On Android, share it straight to SplitPay; on iPhone, save it to Files and use Open .txt, or copy the messages and tap Paste. Claude finds who paid for what. You review everything before it&apos;s saved.
         </p>
         {err && <Alert>{err}</Alert>}
         <div className="flex justify-end gap-2">

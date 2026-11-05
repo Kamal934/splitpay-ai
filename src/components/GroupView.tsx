@@ -1,11 +1,12 @@
 "use client";
 
 import { CircleCheck, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fmt } from "@/lib/money";
 import { groupStats } from "@/lib/stats";
 import type { Group } from "@/lib/types";
-import AddExpense from "./AddExpense";
+import AddExpense, { type Incoming } from "./AddExpense";
 import AgentChat from "./AgentChat";
 import AutopilotPanel from "./AutopilotPanel";
 import { api } from "./api";
@@ -16,7 +17,30 @@ import MembersEditor from "./MembersEditor";
 import SettleUp from "./SettleUp";
 import { Alert, Avatar, AvatarStack, Badge, SectionHeader } from "./ui";
 
-export default function GroupView({ id }: { id: string }) {
+export default function GroupView({ id, share }: { id: string; share?: string }) {
+  const router = useRouter();
+  const [incoming, setIncoming] = useState<Incoming | null>(null);
+  const [shareErr, setShareErr] = useState("");
+
+  // Arrived from the Android share sheet (or an iOS Shortcut): fetch what was shared.
+  useEffect(() => {
+    if (!share) return;
+    (async () => {
+      try {
+        const meta = await api<{ kind: "chat" | "image"; text?: string; mime?: string; ext?: string }>(`/api/share/${share}`);
+        if (meta.kind === "chat") setIncoming({ kind: "chat", text: meta.text ?? "" });
+        else {
+          const blob = await (await fetch(`/api/share/${share}?file=1`)).blob();
+          setIncoming({ kind: "image", file: new File([blob], `shared-receipt.${meta.ext ?? "jpg"}`, { type: meta.mime ?? blob.type }) });
+        }
+        void fetch(`/api/share/${share}`, { method: "DELETE" });
+      } catch (e) {
+        setShareErr((e as Error).message);
+      } finally {
+        router.replace(`/groups/${id}`, { scroll: false });
+      }
+    })();
+  }, [share, id, router]);
   const [group, setGroup] = useState<Group | null>(null);
   const [err, setErr] = useState("");
   const [editing, setEditing] = useState(false);
@@ -143,7 +167,8 @@ export default function GroupView({ id }: { id: string }) {
               </div>
             </div>
 
-            <AddExpense group={group} onAdded={setGroup} />
+            {shareErr && <Alert>{shareErr}</Alert>}
+            <AddExpense group={group} onAdded={setGroup} incoming={incoming} />
             <SettleUp group={group} onChange={setGroup} />
             <AutopilotPanel group={group} onChange={setGroup} />
             <Ledger group={group} onChange={setGroup} />

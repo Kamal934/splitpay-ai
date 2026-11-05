@@ -23,6 +23,7 @@ After every trip, flat-share month or group dinner, one person pays and then spe
 | 📨 **Collect with PayPal** | One click sends each person a PayPal invoice for exactly what they owe; status syncs from PayPal | PayPal Agent Toolkit (Invoicing) |
 | 🤖 **Agent** | Chat: "Who still owes me?", "Remind whoever hasn't paid", "I paid $48 for the cab, split with Raj and Priya" | Claude tool use + PayPal Agent Toolkit |
 | 💬 **Paste the group chat** | Paste a WhatsApp/Telegram chat: Claude finds who paid for what and who it was for, skips plans and person-to-person paybacks, flags unknown names. You review every row before anything is saved | Claude structured outputs |
+| 📲 **Install + share from WhatsApp** | Installable app (PWA). On Android, SplitPay appears in the share menu: WhatsApp → Export chat → SplitPay, or Gallery → receipt → SplitPay. On iPhone: install from Safari, then Paste / Open .txt (or an iOS Shortcut that posts to `/share-target?json=1`) | Web App Manifest share_target |
 | ⚡ **Autopilot collection** | Set rules once (first reminder after X, repeat every Y, stop after N, per-person cap). A scheduler syncs PayPal, sends requests, and sends reminders whose wording Claude writes, getting firmer each time but always polite, then hands back to you | PayPal Agent Toolkit + Claude structured outputs |
 | 🧾 **Audit log** | Every action by you, the chat agent and autopilot is recorded with who did it | – |
 
