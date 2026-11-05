@@ -1,9 +1,19 @@
+import { getGroup } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
-import { addExpense, deleteExpense, type NewExpense } from "@/lib/service";
+import { addExpense, audit, deleteExpense, type NewExpense } from "@/lib/service";
 
+/** Add one expense (body = NewExpense) or several at once (body = { expenses: NewExpense[] }). */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    return ok(await addExpense((await params).id, (await req.json()) as NewExpense));
+    const id = (await params).id;
+    const body = (await req.json()) as NewExpense | { expenses: NewExpense[] };
+    if ("expenses" in body) {
+      if (!body.expenses.length) throw new Error("Nothing to add");
+      for (const e of body.expenses) await addExpense(id, e);
+      await audit(id, "you", [{ kind: "expense", detail: `Imported ${body.expenses.length} expense${body.expenses.length > 1 ? "s" : ""} from a group chat`, ok: true }]);
+      return ok(await getGroup(id));
+    }
+    return ok(await addExpense(id, body));
   } catch (e) {
     return fail(e);
   }

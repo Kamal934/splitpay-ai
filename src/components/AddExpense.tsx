@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, CircleAlert, CircleCheck, Plus, Receipt, Sparkles, Upload, X } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, MessageSquareText, Plus, Receipt, Sparkles, Upload, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { fmt, toCents } from "@/lib/money";
 import { computeShares, type PlanItem } from "@/lib/split";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
+import ChatImport from "./ChatImport";
 import { Alert, Avatar, Badge, SectionHeader, Spinner } from "./ui";
 
 type Item = { name: string; amount: number };
@@ -43,6 +44,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
   const [busy, setBusy] = useState<"" | "reading" | "splitting" | "saving">("");
   const [err, setErr] = useState("");
   const [saved, setSaved] = useState("");
+  const [chatMode, setChatMode] = useState(false);
 
   const valid = useMemo(() => items.filter((i) => i.name.trim() && i.amount), [items]);
   const subtotal = valid.reduce((a, b) => a + (Number(b.amount) || 0), 0);
@@ -184,7 +186,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
       <div className="card-pad border-b border-line">
         <SectionHeader
           title="Add an expense"
-          description="Scan a receipt or enter items, then describe the split in plain English."
+          description={chatMode ? "Paste your group chat and Claude finds who paid for what." : "Scan a receipt, paste a group chat, or enter items, then describe the split in plain English."}
           actions={
             hasDraft && (
               <button className="btn-ghost" onClick={reset}>
@@ -196,7 +198,19 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
       </div>
 
       <div className="card-pad space-y-6">
-        {saved && !hasDraft && (
+        {chatMode && (
+          <ChatImport
+            group={group}
+            onCancel={() => setChatMode(false)}
+            onDone={(g, n) => {
+              onAdded(g);
+              setChatMode(false);
+              setSaved(`Added ${n} expense${n === 1 ? "" : "s"} from the group chat`);
+            }}
+          />
+        )}
+
+        {!chatMode && saved && !hasDraft && (
           <Alert tone="success">
             <span className="flex items-center gap-2">
               <CircleCheck className="h-4 w-4 shrink-0" aria-hidden /> {saved}
@@ -205,7 +219,7 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
         )}
 
         {/* Step 1: receipt */}
-        {!hasDraft ? (
+        {chatMode ? null : !hasDraft ? (
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -229,6 +243,9 @@ export default function AddExpense({ group, onAdded }: { group: Group; onAdded: 
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <button className="btn-primary" onClick={() => fileRef.current?.click()}>
                 <Upload className="h-4 w-4" aria-hidden /> Upload receipt
+              </button>
+              <button className="btn-secondary" onClick={() => (setSaved(""), setChatMode(true))}>
+                <MessageSquareText className="h-4 w-4" aria-hidden /> Paste group chat
               </button>
               <button className="btn-secondary" onClick={() => setItems([{ name: "", amount: 0 }])}>
                 Enter manually

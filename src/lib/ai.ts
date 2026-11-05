@@ -176,3 +176,49 @@ export async function writeReminder(p: {
   }
   return res.parsed_output;
 }
+
+// ---------- 4. Group-chat import (structured output) ----------
+
+const ChatImportSchema = z.object({
+  expenses: z.array(
+    z.object({
+      description: z.string().describe("Short name for the expense, e.g. 'Petrol', 'Beach snacks'"),
+      amount: z.number().describe("Total amount paid, as a plain number"),
+      currency: z.string().describe("ISO code if stated or implied by a symbol, else the group currency"),
+      paid_by_member_id: z.string().describe("Member ID of who paid. Empty string if it's unclear"),
+      shared_with_member_ids: z.array(z.string()).describe("Member IDs who share it. Empty array means everyone in the group"),
+      weights: z.array(z.number()).describe("Relative shares matching shared_with_member_ids; empty or all 1s for equal"),
+      quote: z.string().describe("The exact chat message(s) this came from"),
+      confidence: z.enum(["high", "medium", "low"]),
+      note: z.string().describe("Anything you had to assume, empty string if none"),
+    }),
+  ),
+  ignored: z
+    .array(z.object({ quote: z.string(), reason: z.string() }))
+    .describe("Messages that mention money but are NOT new shared expenses (paybacks between people, plans, questions)"),
+  unmatched_names: z.array(z.string()).describe("People mentioned as payers or sharers who are not in the member list"),
+});
+export type ChatImport = z.infer<typeof ChatImportSchema>;
+
+/** Turns a pasted group chat into candidate expenses for the organiser to review. Nothing is saved here. */
+export async function parseChat(text: string, members: Member[], currency: string): Promise<ChatImport> {
+  const roster = members.map((m) => `- ${m.id}: ${m.name}${m.isOrganizer ? " (organiser; may appear as 'You' in an exported chat)" : ""}`).join("\n");
+  const res = await claude().beta.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    ...FALLBACK,
+    output_config: { effort: "medium", format: zodOutputFormat(ChatImportSchema) },
+    system:
+      "You read a group chat (WhatsApp/Telegram/iMessage export or copy-paste) and find shared expenses someone paid for the group. " +
+      "'I', 'me' and 'my' refer to the sender of that message. Match names loosely (first names, nicknames, small typos) to the member list; " +
+      "never map someone who isn't a member onto a different member: put them in unmatched_names. " +
+      "Only extract money that was actually spent for the group. A person paying another person back is NOT an expense: list it under ignored. " +
+      "Plans, questions and estimates ('should we book?', 'it'll be about 50') are not expenses. " +
+      "If a message says who it was for ('for the 3 of us', 'everyone except Sam'), set shared_with_member_ids accordingly; otherwise leave it empty (everyone). " +
+      `The group currency is ${currency}. Do no arithmetic beyond reading the amounts.`,
+    messages: [{ role: "user", content: `Members:\n${roster}\n\nChat:\n"""\n${text.slice(0, 20000)}\n"""` }],
+  });
+  if (res.stop_reason === "refusal") throw new Error("The AI declined to read this chat.");
+  if (!res.parsed_output) throw new Error("Couldn't read any expenses from that chat.");
+  return res.parsed_output;
+}

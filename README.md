@@ -22,6 +22,7 @@ After every trip, flat-share month or group dinner, one person pays and then spe
 | 📊 **Group ledger** | Every expense and each person's share, with sorting, filtering and a totals row | AG Grid |
 | 📨 **Collect with PayPal** | One click sends each person a PayPal invoice for exactly what they owe; status syncs from PayPal | PayPal Agent Toolkit (Invoicing) |
 | 🤖 **Agent** | Chat: "Who still owes me?", "Remind whoever hasn't paid", "I paid $48 for the cab, split with Raj and Priya" | Claude tool use + PayPal Agent Toolkit |
+| 💬 **Paste the group chat** | Paste a WhatsApp/Telegram chat: Claude finds who paid for what and who it was for, skips plans and person-to-person paybacks, flags unknown names. You review every row before anything is saved | Claude structured outputs |
 | ⚡ **Autopilot collection** | Set rules once (first reminder after X, repeat every Y, stop after N, per-person cap). A scheduler syncs PayPal, sends requests, and sends reminders whose wording Claude writes, getting firmer each time but always polite, then hands back to you | PayPal Agent Toolkit + Claude structured outputs |
 | 🧾 **Audit log** | Every action by you, the chat agent and autopilot is recorded with who did it | – |
 
@@ -93,6 +94,8 @@ npm run dev                  # http://localhost:3000
 3. Type: *"Raj doesn't drink, Priya had both brownies, Sam is vegetarian so no prawns or fish, tip split equally"* → **Split with AI** → **Save**.
 4. **Send PayPal requests**, or ask the agent: *"Send PayPal requests to everyone who owes"*.
 5. Ask the agent: *"Has anyone paid yet? Remind whoever hasn't."*
+6. **Add an expense → Paste group chat → Use sample chat → Find expenses**, review, then add.
+7. Turn on **Autopilot** with "2 minutes (demo)" timings and watch it collect on its own.
 
 ## Deploy on Render
 1. New **Web Service** → connect this repo.
