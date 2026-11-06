@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Ban, Bell, Hand, Zap, CircleAlert, CircleCheck, Receipt, RefreshCw, Send, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowUp, Ban, Bell, ChevronRight, Hand, Zap, CircleAlert, CircleCheck, Receipt, RefreshCw, Send, Sparkles, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
@@ -9,7 +9,13 @@ import { Spinner } from "./ui";
 type Action = { kind: string; detail: string; ok: boolean };
 type Turn = { role: "user" | "assistant"; text: string; actions?: Action[]; error?: boolean };
 
-const SUGGESTIONS = ["Who still owes me money?", "Send PayPal requests to everyone who owes", "Has anyone paid? Remind whoever hasn't", "Turn on autopilot: remind every 2 days, max 3 times"];
+const SUGGESTIONS = [
+  "Who still owes me money?",
+  "Send PayPal requests to everyone who owes",
+  "Has anyone paid? Remind whoever hasn't",
+  "Explain how the last expense was split",
+  "Turn on autopilot: remind every 2 days, max 3 times",
+];
 
 /** Labels describe what the backend confirmed, never more. */
 const ACTION_META: Record<string, { label: string; icon: LucideIcon; paypal: boolean }> = {
@@ -120,13 +126,13 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
 
   return (
     <section className="card flex h-[620px] flex-col overflow-hidden xl:h-full">
-      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white" aria-hidden>
+      <div className="flex items-center gap-3 bg-brand-600 px-4 py-3.5 text-white">
+        <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/15 ring-1 ring-white/20" aria-hidden>
           <Sparkles className="h-4 w-4" />
         </span>
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-ink">SplitPay Agent</h2>
-          <p className="truncate text-xs text-muted">Claude · PayPal Agent Toolkit</p>
+          <h2 className="text-sm font-semibold">SplitPay AI Assistant</h2>
+          <p className="truncate text-xs text-brand-100">Claude · PayPal Agent Toolkit</p>
         </div>
       </div>
 
@@ -168,6 +174,23 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
             </div>
           ),
         )}
+        {turns.length <= 1 && !busy && (
+          <div className="rounded-xl border border-line bg-slate-50/60 p-3">
+            <p className="mb-2 text-xs font-medium text-brand-700">Try these commands</p>
+            <div className="space-y-1.5">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="group flex w-full items-center justify-between gap-2 rounded-lg border border-line bg-white px-3 py-2 text-left text-sm text-ink transition-colors hover:border-brand-200 hover:text-brand-700"
+                >
+                  {s}
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600" aria-hidden />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {busy && (
           <div className="flex gap-2.5">
             <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-brand-50 text-brand-600" aria-hidden>
@@ -182,20 +205,6 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
       </div>
 
       <div className="border-t border-line p-3">
-        {turns.length <= 1 && (
-          <div className="mb-2.5 flex flex-wrap gap-1.5">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                disabled={busy}
-                onClick={() => send(s)}
-                className="rounded-md border border-line bg-white px-2 py-1 text-xs text-muted transition-colors hover:border-brand-200 hover:text-brand-700"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
         <form
           className="flex items-end gap-2 rounded-xl border border-line bg-white p-1.5 shadow-sm focus-within:border-brand-500 focus-within:ring-3 focus-within:ring-brand-100"
           onSubmit={(e) => {

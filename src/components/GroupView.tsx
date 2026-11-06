@@ -1,12 +1,14 @@
 "use client";
 
-import { CircleCheck, CircleDashed, Clock, Receipt, Send, Users, Wallet } from "lucide-react";
+import { CircleCheck, CircleDashed, Clock, Receipt, Scale, Send, Users, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fmt } from "@/lib/money";
 import { groupStats, groupStatus, plural } from "@/lib/stats";
 import type { Group } from "@/lib/types";
+import { OPEN_STATUSES } from "@/lib/types";
 import AddExpense, { type Incoming } from "./AddExpense";
+import { AutopilotSummary, GroupActivity, NextAction, SettlementPill } from "./GroupCards";
 import AgentChat from "./AgentChat";
 import AutopilotPanel from "./AutopilotPanel";
 import { api } from "./api";
@@ -116,18 +118,40 @@ export default function GroupView({ id, share }: { id: string; share?: string })
       />
 
       <PageBody>
+        <NextAction group={group} onAddExpense={() => document.getElementById("add-expense")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-          <StatCard icon={Receipt} tone="brand" label="Total spent" value={fmt(s.spent, group.currency)} hint={plural(group.expenses.length, "expense")} />
-          <StatCard icon={CircleCheck} tone="success" label="Collected via PayPal" value={fmt(s.collected, group.currency)} hint="Invoices PayPal reports as paid" />
-          <StatCard icon={Clock} tone="warning" label="Pending in PayPal" value={fmt(s.pending, group.currency)} hint="Sent, awaiting payment" />
-          <StatCard icon={CircleDashed} tone="neutral" label="Not requested yet" value={fmt(s.notRequested, group.currency)} hint="Owed, no invoice sent" />
+          {(() => {
+            const owedTotal = s.collected + s.open;
+            const openInvoices = group.requests.filter((r) => OPEN_STATUSES.includes(r.status)).length;
+            const toRequest = s.balances.filter((b) => b.requestableCents > 0).length;
+            return (
+              <>
+                <StatCard icon={Receipt} tone="brand" label="Total spent" value={fmt(s.spent, group.currency)} hint={plural(group.expenses.length, "expense")} />
+                <StatCard
+                  icon={CircleCheck}
+                  tone="success"
+                  label="Collected via PayPal"
+                  value={fmt(s.collected, group.currency)}
+                  hint={owedTotal ? `${Math.round((s.collected / owedTotal) * 100)}% of ${fmt(owedTotal, group.currency)} owed` : "Nothing owed yet"}
+                />
+                <StatCard icon={Clock} tone="warning" label="Pending in PayPal" value={fmt(s.pending, group.currency)} hint={plural(openInvoices, "open invoice")} />
+                <StatCard icon={CircleDashed} tone="neutral" label="Not requested yet" value={fmt(s.notRequested, group.currency)} hint={toRequest ? `${plural(toRequest, "person", "people")} to request` : "Everyone requested"} />
+              </>
+            );
+          })()}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
           <div className="min-w-0 space-y-6">
             <div className="card">
               <div className="card-pad">
-                <SectionHeader title="Balances" description="What each person paid, their share, and where they stand. Send each person their private Link to see every receipt and pay." />
+                <SectionHeader
+                  icon={Scale}
+                  title="Balances"
+                  description="Who paid, their share, and where they stand. Send each person their private Link to see every receipt and pay."
+                  actions={<SettlementPill group={group} />}
+                />
                 <div className="mt-5">
                   <CollectionBar
                     parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }}
@@ -190,8 +214,15 @@ export default function GroupView({ id, share }: { id: string; share?: string })
               </div>
             </div>
 
+            <div className="grid gap-6 lg:grid-cols-2">
+              <GroupActivity group={group} />
+              <AutopilotSummary group={group} />
+            </div>
+
             {shareErr && <Alert>{shareErr}</Alert>}
-            <AddExpense group={group} onAdded={setGroup} incoming={incoming} />
+            <div id="add-expense" className="scroll-mt-4">
+              <AddExpense group={group} onAdded={setGroup} incoming={incoming} />
+            </div>
             <SettleUp group={group} onChange={setGroup} />
             <AutopilotPanel group={group} onChange={setGroup} />
             <Ledger group={group} onChange={setGroup} />

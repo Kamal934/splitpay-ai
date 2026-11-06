@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowRight, CircleAlert, CircleCheck, ExternalLink, RefreshCw, Send } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, CircleAlert, CircleCheck, CreditCard, ExternalLink, RefreshCw, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { on } from "@/lib/events";
 import { fmt, simplifyDebts } from "@/lib/money";
 import { groupStats, timeAgo } from "@/lib/stats";
 import type { Group, PaymentRequest } from "@/lib/types";
@@ -39,10 +40,30 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
     }
   }
 
+  // The group page banner can trigger these actions (same dialog, same checks).
+  const ref = useRef<HTMLElement>(null);
+  const latest = useRef({ canSend: toRequest.length > 0, act });
+  latest.current = { canSend: toRequest.length > 0, act };
+  useEffect(() => {
+    const offReq = on("request-payments", () => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (latest.current.canSend) setConfirmSend(true);
+    });
+    const offChk = on("check-payments", () => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      void latest.current.act("refresh", { action: "refresh" });
+    });
+    return () => {
+      offReq();
+      offChk();
+    };
+  }, []);
+
   return (
-    <section className="card">
+    <section ref={ref} className="card scroll-mt-4">
       <div className="card-pad border-b border-line">
         <SectionHeader
+          icon={CreditCard}
           title="PayPal payments"
           description="Each person gets a PayPal invoice for exactly what the ledger says they owe."
           actions={

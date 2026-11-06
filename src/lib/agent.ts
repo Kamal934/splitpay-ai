@@ -27,7 +27,14 @@ async function summary(groupId: string) {
       pending_paypal_requests: fmt(x.pendingCents, g.currency),
     })),
     suggested_transfers: simplifyDebts(b).map((t) => `${t.from.name} -> ${t.to.name}: ${fmt(t.cents, g.currency)}`),
-    expenses: g.expenses.map((e) => ({ description: e.description, total: fmt(e.totalCents, g.currency), paid_by: name(e.paidBy) })),
+    expenses: g.expenses.map((e) => ({
+      description: e.description,
+      added: e.createdAt,
+      total: fmt(e.totalCents, g.currency),
+      paid_by: name(e.paidBy),
+      how_it_was_split: e.aiExplanation || e.splitInstruction || "Split equally",
+      shares: e.shares.map((x) => `${name(x.memberId)} ${fmt(x.cents, g.currency)}`),
+    })),
     paypal_requests: g.requests.map((r) => ({
       request_id: r.id,
       member: name(r.memberId),

@@ -1,7 +1,8 @@
 "use client";
 
 import { Bot, CircleAlert, CircleCheck, Hand, Play, ShieldCheck, User, Users, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { on } from "@/lib/events";
 import { fmt } from "@/lib/money";
 import { timeAgo } from "@/lib/stats";
 import type { AuditActor, AutopilotSettings, Group } from "@/lib/types";
@@ -112,13 +113,17 @@ export default function AutopilotPanel({ group, onChange }: { group: Group; onCh
     }
   }
 
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => on("open-autopilot", () => ref.current?.scrollIntoView({ behavior: "smooth", block: "start" })), []);
+
   const log = group.audit ?? [];
   const handedBack = group.requests.filter((r) => r.escalated && r.status !== "PAID" && r.status !== "MARKED_AS_PAID" && r.status !== "CANCELLED");
 
   return (
-    <section className="card">
+    <section ref={ref} className="card scroll-mt-4">
       <div className="card-pad border-b border-line">
         <SectionHeader
+          icon={Zap}
           title="Autopilot collection"
           description="Set the rules once. SplitPay checks PayPal on a schedule, requests what's owed and follows up until everyone has paid."
           actions={

@@ -174,12 +174,29 @@ export function Dialog({
 }
 
 /* ---------- Section header ---------- */
-export function SectionHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
+export function SectionHeader({
+  title,
+  description,
+  actions,
+  icon: Icon,
+}: {
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+  icon?: LucideIcon;
+}) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2 className="text-base font-semibold text-ink">{title}</h2>
-        {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+      <div className="flex min-w-0 items-start gap-3">
+        {Icon && (
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+            <Icon className="h-4 w-4" aria-hidden />
+          </span>
+        )}
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-ink">{title}</h2>
+          {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+        </div>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
