@@ -164,6 +164,7 @@ const ACTOR: Record<AuditActor, { label: string; icon: LucideIcon; tone: "neutra
   agent: { label: "Agent", icon: Bot, tone: "brand" },
   autopilot: { label: "Autopilot", icon: Zap, tone: "warning" },
   member: { label: "Member", icon: Users, tone: "neutral" },
+  paypal: { label: "PayPal", icon: CircleCheck, tone: "brand" },
 };
 
 export function GroupActivity({ group }: { group: Group }) {

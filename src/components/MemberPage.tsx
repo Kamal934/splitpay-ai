@@ -176,6 +176,14 @@ export default function MemberPage({ token }: { token: string }) {
     void load();
   }, [load]);
 
+  // After paying in PayPal, the webhook updates the server; refresh while something is pending.
+  const pendingNow = !!view?.requests.some((r) => OPEN_STATUSES.includes(r.status));
+  useEffect(() => {
+    if (!pendingNow) return;
+    const t = setInterval(() => document.visibilityState === "visible" && void load(), 15000);
+    return () => clearInterval(t);
+  }, [pendingNow, load]);
+
   if (err && !view)
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">

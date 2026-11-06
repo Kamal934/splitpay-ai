@@ -65,13 +65,16 @@ export default function GroupView({ id, share }: { id: string; share?: string })
 
   useEffect(reload, [reload]);
 
-  // While autopilot is on, refresh every 20s so its work shows up live.
-  const autopilotOn = !!group?.autopilot?.enabled;
+  // Keep the page live while money is moving: PayPal webhooks and autopilot update the
+  // ledger on the server, and this picks it up (a cheap read of our own data, not a PayPal call).
+  const live = !!group?.autopilot?.enabled || !!group?.requests.some((r) => OPEN_STATUSES.includes(r.status));
   useEffect(() => {
-    if (!autopilotOn) return;
-    const t = setInterval(reload, 20000);
+    if (!live) return;
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") reload();
+    }, 15000);
     return () => clearInterval(t);
-  }, [autopilotOn, reload]);
+  }, [live, reload]);
 
   if (err)
     return (

@@ -100,7 +100,7 @@ export type AutopilotSettings = {
   lastSummary?: string;
 };
 
-export type AuditActor = "you" | "agent" | "autopilot" | "member";
+export type AuditActor = "you" | "agent" | "autopilot" | "member" | "paypal";
 
 export type AuditEntry = {
   id: string;
