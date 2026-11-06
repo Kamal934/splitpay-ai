@@ -8,11 +8,11 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
           <Logo />
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
-            <Link href="/#how" className="hover:text-ink">How it works</Link>
-            <Link href="/#features" className="hover:text-ink">Features</Link>
-            <Link href="/#agent" className="hover:text-ink">AI agent</Link>
-            <Link href="/#safety" className="hover:text-ink">Safety</Link>
-            <a href={REPO} target="_blank" rel="noreferrer" className="hover:text-ink">GitHub</a>
+            <Link href="/#how" className="nav-link hover:text-ink">How it works</Link>
+            <Link href="/#features" className="nav-link hover:text-ink">Features</Link>
+            <Link href="/#agent" className="nav-link hover:text-ink">AI agent</Link>
+            <Link href="/#safety" className="nav-link hover:text-ink">Safety</Link>
+            <a href={REPO} target="_blank" rel="noreferrer" className="nav-link hover:text-ink">GitHub</a>
           </nav>
           <Link href="/app" className="btn-primary">Open app</Link>
         </div>
@@ -30,8 +30,8 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <p className="mb-2 font-medium text-ink">Product</p>
             <ul className="space-y-1.5 text-muted">
               <li><Link href="/app" className="hover:text-ink">Open app</Link></li>
-              <li><Link href="/#how" className="hover:text-ink">How it works</Link></li>
-              <li><Link href="/#safety" className="hover:text-ink">Safety & guardrails</Link></li>
+              <li><Link href="/#how" className="nav-link hover:text-ink">How it works</Link></li>
+              <li><Link href="/#safety" className="nav-link hover:text-ink">Safety & guardrails</Link></li>
             </ul>
           </div>
           <div className="text-sm">

@@ -1,10 +1,10 @@
 "use client";
 
-import { CircleCheck, Users } from "lucide-react";
+import { CircleCheck, CircleDashed, Clock, Receipt, Send, Users, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fmt } from "@/lib/money";
-import { groupStats } from "@/lib/stats";
+import { groupStats, groupStatus, plural } from "@/lib/stats";
 import type { Group } from "@/lib/types";
 import AddExpense, { type Incoming } from "./AddExpense";
 import AgentChat from "./AgentChat";
@@ -17,7 +17,7 @@ import DeleteGroup from "./DeleteGroup";
 import Ledger from "./Ledger";
 import MembersEditor from "./MembersEditor";
 import SettleUp from "./SettleUp";
-import { Alert, Avatar, AvatarStack, Badge, SectionHeader } from "./ui";
+import { Alert, Avatar, AvatarStack, Badge, SectionHeader, StatCard } from "./ui";
 
 export default function GroupView({ id, share }: { id: string; share?: string }) {
   const router = useRouter();
@@ -91,7 +91,18 @@ export default function GroupView({ id, share }: { id: string; share?: string })
         subtitle={
           <span className="flex items-center gap-2">
             <AvatarStack people={group.members} max={6} />
-            {group.members.length} people · {group.expenses.length} expenses
+            {plural(group.members.length, "person", "people")} · {plural(group.expenses.length, "expense")}
+            {(() => {
+              const st = groupStatus(group);
+              const Icon = { new: CircleDashed, ready: Send, collecting: Clock, payback: Wallet, settled_paypal: CircleCheck, settled_internal: CircleCheck }[st.key];
+              return (
+                <span title={st.hint}>
+                  <Badge tone={st.tone}>
+                    <Icon className="h-3.5 w-3.5" aria-hidden /> {st.label}
+                  </Badge>
+                </span>
+              );
+            })()}
           </span>
         }
         actions={
@@ -106,18 +117,10 @@ export default function GroupView({ id, share }: { id: string; share?: string })
 
       <PageBody>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-          {[
-            ["Total spent", s.spent, "All expenses in this group"],
-            ["Collected via PayPal", s.collected, "Invoices PayPal reports as paid"],
-            ["Pending in PayPal", s.pending, "Sent, awaiting payment"],
-            ["Not requested yet", s.notRequested, "Owed, no invoice sent"],
-          ].map(([label, v, hint]) => (
-            <div key={label as string} className="card card-pad">
-              <p className="text-sm text-muted">{label as string}</p>
-              <p className="num mt-1.5 text-xl font-semibold tracking-tight text-ink sm:text-2xl">{fmt(v as number, group.currency)}</p>
-              <p className="mt-1 text-xs text-muted">{hint as string}</p>
-            </div>
-          ))}
+          <StatCard icon={Receipt} tone="brand" label="Total spent" value={fmt(s.spent, group.currency)} hint={plural(group.expenses.length, "expense")} />
+          <StatCard icon={CircleCheck} tone="success" label="Collected via PayPal" value={fmt(s.collected, group.currency)} hint="Invoices PayPal reports as paid" />
+          <StatCard icon={Clock} tone="warning" label="Pending in PayPal" value={fmt(s.pending, group.currency)} hint="Sent, awaiting payment" />
+          <StatCard icon={CircleDashed} tone="neutral" label="Not requested yet" value={fmt(s.notRequested, group.currency)} hint="Owed, no invoice sent" />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
@@ -126,8 +129,22 @@ export default function GroupView({ id, share }: { id: string; share?: string })
               <div className="card-pad">
                 <SectionHeader title="Balances" description="What each person paid, their share, and where they stand. Send each person their private Link to see every receipt and pay." />
                 <div className="mt-5">
-                  <CollectionBar parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }} currency={group.currency} />
+                  <CollectionBar
+                    parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }}
+                    currency={group.currency}
+                    emptyText={s.spent > 0 ? "Nothing to collect. Every expense is either paid back or covered by the person who paid it." : undefined}
+                  />
                 </div>
+                {s.paybackDue > 0 && (
+                  <div className="mt-4">
+                    <Alert tone="warning">
+                      <span className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4 shrink-0" aria-hidden />
+                        {fmt(s.paybackDue, group.currency)} belongs to members who paid more than their share. That&apos;s separate from PayPal collection and still needs paying back.
+                      </span>
+                    </Alert>
+                  </div>
+                )}
               </div>
               <div className="overflow-x-auto border-t border-line">
                 <table className="w-full min-w-[560px]">

@@ -59,7 +59,7 @@ const TONE: Record<Tone, string> = {
 
 export function Badge({ tone = "neutral", children, title }: { tone?: Tone; children: React.ReactNode; title?: string }) {
   return (
-    <span title={title} className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONE[tone]}`}>
+    <span title={title} className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONE[tone]}`}>
       {children}
     </span>
   );
@@ -182,6 +182,43 @@ export function SectionHeader({ title, description, actions }: { title: string; 
         {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+/* ---------- Stat card (dashboard + group summaries) ---------- */
+const STAT_TONE = {
+  brand: "bg-brand-50 text-brand-600",
+  success: "bg-emerald-50 text-emerald-600",
+  warning: "bg-amber-50 text-amber-600",
+  neutral: "bg-slate-100 text-slate-500",
+} as const;
+
+export function StatCard({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone = "neutral",
+  emphasis = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: keyof typeof STAT_TONE;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="card card-pad transition-shadow hover:shadow-[0_4px_12px_rgba(16,24,40,0.06)]">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-muted">{label}</p>
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${STAT_TONE[tone]}`}>
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
+      </div>
+      <p className={`num mt-2 text-xl font-semibold tracking-tight sm:text-2xl ${emphasis ? "text-ink" : "text-ink"}`}>{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }

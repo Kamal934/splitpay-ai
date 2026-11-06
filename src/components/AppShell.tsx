@@ -1,9 +1,11 @@
 "use client";
 
-import { Code, House, LayoutDashboard, Menu, Plus } from "lucide-react";
+import { Code, FlaskConical, House, LayoutDashboard, Menu, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { fmt } from "@/lib/money";
+import { groupStats, groupStatus } from "@/lib/stats";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
 import InstallApp from "./InstallApp";
@@ -16,10 +18,11 @@ function NavLink({ href, active, children, onClick }: { href: string; active: bo
       href={href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors ${
-        active ? "bg-brand-50 font-medium text-brand-700" : "text-muted hover:bg-slate-100 hover:text-ink"
+      className={`relative flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors ${
+        active ? "bg-brand-50 font-medium text-brand-700" : "text-muted hover:bg-slate-50 hover:text-ink"
       }`}
     >
+      {active && <span className="absolute -left-3 top-1.5 h-6 w-[3px] rounded-r-full bg-brand-600" aria-hidden />}
       {children}
     </Link>
   );
@@ -43,15 +46,26 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
           </NavLink>
         </div>
         <div>
-          <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">Groups</p>
+          <p className="flex items-center justify-between px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            Groups {groups.length > 0 && <span className="num rounded-full bg-slate-100 px-1.5 text-[10px] text-muted">{groups.length}</span>}
+          </p>
           <div className="space-y-0.5">
             {groups.length === 0 && <p className="px-2.5 text-xs text-muted">No groups yet</p>}
-            {groups.map((g) => (
-              <NavLink key={g.id} href={`/groups/${g.id}`} active={pathname === `/groups/${g.id}`} onClick={onNavigate}>
-                <Avatar name={g.name} id={g.id} size="sm" />
-                <span className="truncate">{g.name}</span>
-              </NavLink>
-            ))}
+            {groups.map((g) => {
+              const st = groupStatus(g);
+              const open = groupStats(g).open;
+              const dot = { success: "bg-success", warning: "bg-warning", brand: "bg-brand-500", neutral: "bg-slate-300" }[st.tone];
+              return (
+                <NavLink key={g.id} href={`/groups/${g.id}`} active={pathname === `/groups/${g.id}`} onClick={onNavigate}>
+                  <span className="relative">
+                    <Avatar name={g.name} id={g.id} size="sm" />
+                    <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${dot}`} title={st.label} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{g.name}</span>
+                  {open > 0 && <span className="num shrink-0 text-[11px] text-muted">{fmt(open, g.currency)}</span>}
+                </NavLink>
+              );
+            })}
           </div>
         </div>
       </nav>
@@ -63,8 +77,12 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
         <a href={REPO} target="_blank" rel="noreferrer" className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-muted hover:bg-slate-100 hover:text-ink">
           <Code className={ICON} aria-hidden /> Source code
         </a>
-        <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
-          <span className="h-1.5 w-1.5 rounded-full bg-warning" /> PayPal sandbox · test money only
+        <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 px-2.5 py-2 text-xs text-amber-800">
+          <FlaskConical className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>
+            <span className="font-medium">PayPal sandbox</span>
+            <span className="block text-amber-700/80">Test money only</span>
+          </span>
         </div>
       </div>
     </div>

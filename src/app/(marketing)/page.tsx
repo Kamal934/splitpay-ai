@@ -11,7 +11,7 @@ const STEPS = [
   {
     n: "02",
     title: "Say how to split it",
-    text: "“Kamal is vegetarian, Priya had both desserts, tip split equally.” Plain English becomes an exact, item-by-item split.",
+    text: "“Raj is vegetarian, Priya had both desserts, tip split equally.” Plain English becomes an exact, item-by-item split.",
   },
   {
     n: "03",
@@ -39,9 +39,13 @@ const GUARDS = [
 function HeroVisual() {
   return (
     <div className="relative mx-auto w-full max-w-md">
-      <div className="absolute -inset-8 -z-10 rounded-[2rem] bg-brand-50" />
-      {/* Receipt */}
-      <div className="card rotate-[-2deg] p-4 font-mono text-xs shadow-lg">
+      <div className="absolute -inset-8 -z-10 rounded-[2rem] bg-gradient-to-b from-brand-50 to-white" />
+      {/* 1. Receipt, with an AI scan line reading it */}
+      <div className="hero-rise relative overflow-hidden card rotate-[-2deg] p-4 font-mono text-xs shadow-lg" style={{ animationDelay: "0ms" }}>
+        <span className="absolute right-3 top-3 rounded-md bg-brand-50 px-1.5 py-0.5 font-sans text-[10px] font-medium text-brand-700">1 · Read</span>
+        <span className="hero-scan pointer-events-none absolute inset-x-0 h-8 bg-gradient-to-b from-transparent via-brand-500/15 to-transparent" aria-hidden>
+          <span className="absolute inset-x-0 top-1/2 h-px bg-brand-500/60" />
+        </span>
         <p className="text-center font-bold">MOKU HAWAIIAN GRILL</p>
         <div className="my-2 border-t border-dashed border-slate-300" />
         {[
@@ -62,39 +66,62 @@ function HeroVisual() {
           <span>$28.44</span>
         </div>
       </div>
-      {/* AI split */}
-      <div className="card relative mt-3 ml-10 rotate-[1deg] p-4 shadow-xl">
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-brand-700"><Sparkles className="h-3.5 w-3.5" aria-hidden /> “Kamal skips the Moku Large, he&apos;s vegetarian”</p>
+      {/* 2. AI split */}
+      <div className="hero-rise card relative mt-3 ml-10 rotate-[1deg] p-4 shadow-xl" style={{ animationDelay: "350ms" }}>
+        <div className="flex items-start justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-brand-700">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden /> “Raj is vegetarian, skip the Moku Large”
+          </p>
+          <span className="shrink-0 rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">2 · Split</span>
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           {[
-            ["You", "$8.27"],
-            ["Kamal", "$3.67"],
+            ["Kamal", "$8.27"],
+            ["Raj", "$3.67"],
             ["Priya", "$8.25"],
             ["Sam", "$8.25"],
           ].map(([n, v]) => (
             <div key={n} className="flex justify-between rounded-lg bg-slate-50 px-2.5 py-1.5">
               <span>{n}</span>
-              <b>{v}</b>
+              <b className="num">{v}</b>
             </div>
           ))}
         </div>
+        <p className="mt-2 flex items-center gap-1 text-[11px] text-success">
+          <CircleCheck className="h-3 w-3" aria-hidden /> Adds up to exactly $28.44
+        </p>
       </div>
-      {/* PayPal status */}
-      <div className="card relative -mt-4 mr-10 rotate-[-1deg] p-4 shadow-xl">
-        <p className="mb-2 text-xs font-semibold text-muted">PAYPAL REQUESTS</p>
+      {/* 3. PayPal collection */}
+      <div className="hero-rise card relative -mt-4 mr-10 rotate-[-1deg] p-4 shadow-xl" style={{ animationDelay: "700ms" }}>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-semibold text-muted">PAYPAL REQUESTS</p>
+          <span className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">3 · Collect</span>
+        </div>
         {[
-          ["Kamal", "$3.67", "Paid", "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20"],
-          ["Priya", "$8.25", "Paid", "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20"],
-          ["Sam", "$8.25", "Pending", "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20"],
-        ].map(([n, v, s, c]) => (
-          <div key={n} className="flex items-center justify-between py-1 text-sm">
+          ["Raj", "$3.67", true],
+          ["Priya", "$8.25", true],
+          ["Sam", "$8.25", false],
+        ].map(([n, v, paid]) => (
+          <div key={n as string} className="flex items-center justify-between py-1 text-sm">
             <span className="font-medium">{n}</span>
             <span className="flex items-center gap-2">
-              {v}
-              <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${c}`}>{s}</span>
+              <span className="num">{v}</span>
+              {paid ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                  <CircleCheck className="h-3 w-3" aria-hidden /> Paid
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                  <span className="hero-pulse h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden /> Pending
+                </span>
+              )}
             </span>
           </div>
         ))}
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div className="hero-fill h-full rounded-full bg-success" style={{ width: "60%" }} />
+        </div>
+        <p className="mt-1 text-[11px] text-muted">$11.92 of $20.17 collected</p>
       </div>
     </div>
   );
@@ -193,7 +220,7 @@ export default function Landing() {
             send PayPal requests, look up who has paid and nudge whoever hasn&apos;t, all through the PayPal Agent Toolkit.
           </p>
           <ul className="mt-6 space-y-2 text-sm text-slate-700">
-            {["Who still owes me money?", "Send PayPal requests to everyone who owes", "I paid $48 for the cab, split with Kamal and Priya", "Remind whoever hasn't paid"].map((q) => (
+            {["Who still owes me money?", "Send PayPal requests to everyone who owes", "I paid $48 for the cab, split with Raj and Priya", "Remind whoever hasn't paid"].map((q) => (
               <li key={q} className="flex items-center gap-2">
                 <ArrowRight className="h-4 w-4 shrink-0 text-brand-600" aria-hidden /> “{q}”
               </li>
@@ -208,7 +235,7 @@ export default function Landing() {
             </div>
             <div className="max-w-[90%] rounded-2xl bg-slate-100 px-3 py-2">
               <p>I just checked PayPal:</p>
-              <p className="mt-1">· <b>Kamal</b>: $3.67, paid</p>
+              <p className="mt-1">· <b>Raj</b>: $3.67, paid</p>
               <p>· <b>Priya</b>: $8.25, paid</p>
               <p>· <b>Sam</b>: $8.25, not paid yet</p>
               <p className="mt-1">I sent Sam a friendly reminder.</p>

@@ -17,43 +17,73 @@ const PARTS = [
   { key: "notRequested", label: "Not requested yet", icon: CircleDashed, color: "#94A3B8" },
 ] as const;
 
-export default function CollectionBar({ parts, currency = "USD", tall = true }: { parts: CollectionParts; currency?: string; tall?: boolean }) {
+export default function CollectionBar({
+  parts,
+  currency = "USD",
+  emptyText = "Nothing to collect yet. Add an expense and anyone who owes you will show up here.",
+}: {
+  parts: CollectionParts;
+  currency?: string;
+  emptyText?: string;
+}) {
   const [hover, setHover] = useState<string | null>(null);
   const total = parts.collected + parts.pending + parts.notRequested;
+  const pct = total ? Math.round((parts.collected / total) * 100) : 0;
   const shown = PARTS.filter((p) => parts[p.key] > 0);
+
+  if (total === 0)
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/60 px-4 py-4">
+        <CircleDashed className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+        <p className="text-sm text-muted">{emptyText}</p>
+      </div>
+    );
 
   return (
     <div>
-      <div className={`relative flex w-full gap-[2px] overflow-hidden rounded-[4px] bg-slate-100 ${tall ? "h-8" : "h-2"}`} role="img" aria-label={PARTS.map((p) => `${p.label} ${fmt(parts[p.key], currency)}`).join(", ")}>
-        {total === 0 ? null : (
-          shown.map((p) => {
-            const pct = (parts[p.key] / total) * 100;
-            return (
-              <div
-                key={p.key}
-                onMouseEnter={() => setHover(p.key)}
-                onMouseLeave={() => setHover(null)}
-                className="relative h-full transition-opacity first:rounded-l-[4px] last:rounded-r-[4px]"
-                style={{ width: `${pct}%`, background: p.color, opacity: hover && hover !== p.key ? 0.45 : 1 }}
-              >
-                {tall && pct > 14 && <span className="num absolute inset-0 grid place-items-center text-xs font-medium text-white">{Math.round(pct)}%</span>}
-                {hover === p.key && (
-                  <div className="num pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-white shadow">
-                    {p.label}: {fmt(parts[p.key], currency)} ({Math.round(pct)}%)
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm text-muted">
+          <span className="num text-2xl font-semibold tracking-tight text-ink">{pct}%</span> collected
+        </p>
+        <p className="num text-sm text-muted">
+          {fmt(parts.collected, currency)} of {fmt(total, currency)}
+        </p>
       </div>
-      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
+      <div
+        className="relative flex h-3 w-full gap-[2px] overflow-visible rounded-full bg-slate-100"
+        role="img"
+        aria-label={PARTS.map((p) => `${p.label} ${fmt(parts[p.key], currency)}`).join(", ")}
+      >
+        {shown.map((p) => {
+          const w = (parts[p.key] / total) * 100;
+          return (
+            <div
+              key={p.key}
+              onMouseEnter={() => setHover(p.key)}
+              onMouseLeave={() => setHover(null)}
+              className="relative h-full transition-[opacity,width] duration-500 first:rounded-l-full last:rounded-r-full"
+              style={{ width: `${w}%`, background: p.color, opacity: hover && hover !== p.key ? 0.4 : 1 }}
+            >
+              {hover === p.key && (
+                <div className="num pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-white shadow">
+                  {p.label}: {fmt(parts[p.key], currency)} ({Math.round(w)}%)
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <ul className="mt-4 grid gap-2 sm:grid-cols-3">
         {PARTS.map((p) => (
-          <li key={p.key} className="flex items-center gap-1.5 text-muted">
-            <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: p.color }} aria-hidden />
-            <p.icon className="h-3.5 w-3.5" aria-hidden />
-            {p.label}
-            <span className="num font-medium text-ink">{fmt(parts[p.key], currency)}</span>
+          <li key={p.key} className="flex items-center gap-2.5 rounded-lg border border-line px-3 py-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: p.color }} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1 text-xs text-muted">
+                <p.icon className="h-3.5 w-3.5" aria-hidden />
+                {p.label}
+              </span>
+              <span className="num block text-sm font-semibold text-ink">{fmt(parts[p.key], currency)}</span>
+            </span>
           </li>
         ))}
       </ul>
