@@ -1,12 +1,13 @@
 "use client";
 
-import { Ban, Bell, ChevronRight, CircleAlert, CircleCheck, Hand, History, PartyPopper, Receipt, RefreshCw, ScanLine, Send, Settings2, Sparkles, Wallet, Zap, type LucideIcon } from "lucide-react";
+import { Ban, Bell, Bot, ChevronRight, CircleAlert, CircleCheck, Hand, History, PartyPopper, Receipt, RefreshCw, ScanLine, Send, Settings2, Sparkles, User, Users, Wallet, Zap, type LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { emit } from "@/lib/events";
 import { fmt } from "@/lib/money";
 import { groupStats, groupStatus, plural, recentActivity, timeAgo, type ActivityKind } from "@/lib/stats";
-import type { Group } from "@/lib/types";
+import type { AuditActor, Group } from "@/lib/types";
 import { OPEN_STATUSES } from "@/lib/types";
-import { Badge, SectionHeader } from "./ui";
+import { Badge, Dialog, SectionHeader } from "./ui";
 
 /* ---------- 1. Next best action, driven by the real group status ---------- */
 
@@ -144,11 +145,48 @@ const ACT: Record<ActivityKind, { icon: LucideIcon; tone: string }> = {
   autopilot: { icon: Hand, tone: "bg-slate-100 text-slate-500" },
 };
 
+const ACTOR: Record<AuditActor, { label: string; icon: LucideIcon; tone: "neutral" | "brand" | "warning" }> = {
+  you: { label: "You", icon: User, tone: "neutral" },
+  agent: { label: "Agent", icon: Bot, tone: "brand" },
+  autopilot: { label: "Autopilot", icon: Zap, tone: "warning" },
+  member: { label: "Member", icon: Users, tone: "neutral" },
+};
+
 export function GroupActivity({ group }: { group: Group }) {
   const items = recentActivity([group], 5);
+  const [open, setOpen] = useState(false);
+  const log = group.audit ?? [];
   return (
     <div className="card card-pad">
-      <SectionHeader icon={History} title="Recent activity" />
+      <SectionHeader
+        icon={History}
+        title="Recent activity"
+        actions={
+          log.length > 0 && (
+            <button className="btn-ghost text-brand-700" onClick={() => setOpen(true)}>
+              View all <ChevronRight className="h-4 w-4" aria-hidden />
+            </button>
+          )
+        }
+      />
+      <Dialog open={open} onClose={() => setOpen(false)} title="Audit log" size="lg" footer={<button className="btn-secondary" onClick={() => setOpen(false)}>Close</button>}>
+        <p className="mb-3">Every action on this group by you, the chat agent, autopilot and members, newest first.</p>
+        <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto rounded-lg border border-line">
+          {log.slice(0, 200).map((e) => {
+            const a = ACTOR[e.actor];
+            return (
+              <li key={e.id} className="flex items-start gap-3 px-3 py-2.5">
+                <Badge tone={a.tone}>
+                  <a.icon className="h-3.5 w-3.5" aria-hidden />
+                  {a.label}
+                </Badge>
+                <p className={`min-w-0 flex-1 text-sm ${e.ok ? "text-ink" : "text-danger"}`}>{e.detail}</p>
+                <span className="shrink-0 text-xs text-muted">{timeAgo(e.at)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </Dialog>
       {items.length === 0 ? (
         <p className="mt-4 text-sm text-muted">Expenses, PayPal requests and payments will appear here as they happen.</p>
       ) : (

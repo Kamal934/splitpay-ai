@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, CircleDashed, Clock, Receipt, Scale, Send, Users, Wallet } from "lucide-react";
+import { ChartColumn, CircleCheck, CircleDashed, Clock, Receipt, Scale, Send, Users, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fmt } from "@/lib/money";
@@ -144,31 +144,25 @@ export default function GroupView({ id, share }: { id: string; share?: string })
 
         <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
           <div className="min-w-0 space-y-6">
+            <div className="card card-pad">
+              <SectionHeader icon={ChartColumn} title="Collection overview" description="How much of what's owed has come back through PayPal." />
+              <div className="mt-5">
+                <CollectionBar
+                  parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }}
+                  currency={group.currency}
+                  emptyText={s.spent > 0 ? "Nothing to collect. Every expense is either paid back or covered by the person who paid it." : undefined}
+                />
+              </div>
+            </div>
+
             <div className="card">
-              <div className="card-pad">
+              <div className="card-pad pb-4">
                 <SectionHeader
                   icon={Scale}
                   title="Balances"
                   description="Who paid, their share, and where they stand. Send each person their private Link to see every receipt and pay."
                   actions={<SettlementPill group={group} />}
                 />
-                <div className="mt-5">
-                  <CollectionBar
-                    parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }}
-                    currency={group.currency}
-                    emptyText={s.spent > 0 ? "Nothing to collect. Every expense is either paid back or covered by the person who paid it." : undefined}
-                  />
-                </div>
-                {s.paybackDue > 0 && (
-                  <div className="mt-4">
-                    <Alert tone="warning">
-                      <span className="flex items-center gap-2">
-                        <Wallet className="h-4 w-4 shrink-0" aria-hidden />
-                        {fmt(s.paybackDue, group.currency)} belongs to members who paid more than their share. That&apos;s separate from PayPal collection and still needs paying back.
-                      </span>
-                    </Alert>
-                  </div>
-                )}
               </div>
               <div className="overflow-x-auto border-t border-line">
                 <table className="w-full min-w-[560px]">

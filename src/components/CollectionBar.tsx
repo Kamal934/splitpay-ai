@@ -73,17 +73,13 @@ export default function CollectionBar({
           );
         })}
       </div>
-      <ul className="mt-4 grid gap-2 sm:grid-cols-3">
+      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
         {PARTS.map((p) => (
-          <li key={p.key} className="flex items-center gap-2.5 rounded-lg border border-line px-3 py-2">
+          <li key={p.key} className="flex items-center gap-1.5 text-muted">
             <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: p.color }} aria-hidden />
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-1 text-xs text-muted">
-                <p.icon className="h-3.5 w-3.5" aria-hidden />
-                {p.label}
-              </span>
-              <span className="num block text-sm font-semibold text-ink">{fmt(parts[p.key], currency)}</span>
-            </span>
+            <p.icon className="h-3.5 w-3.5" aria-hidden />
+            {p.label}
+            <span className="num font-medium text-ink">{fmt(parts[p.key], currency)}</span>
           </li>
         ))}
       </ul>

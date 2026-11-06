@@ -79,25 +79,10 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
         />
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 divide-line border-b border-line sm:grid-cols-4 sm:divide-x">
-        {[
-          ["Requested", s.pending + s.collected, "text-ink"],
-          ["Paid", s.collected, "text-success"],
-          ["Pending", s.pending, "text-warning"],
-          ["Not requested", s.notRequested, "text-ink"],
-        ].map(([label, v, c]) => (
-          <div key={label as string} className="px-5 py-4 sm:px-6">
-            <p className="text-xs text-muted">{label as string}</p>
-            <p className={`num mt-0.5 text-lg font-semibold ${c}`}>{fmt(v as number, group.currency)}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Who owes whom */}
-      {transfers.length > 0 && (
+      {/* Who owes whom: only when someone other than the organiser is owed (otherwise Balances already says it) */}
+      {transfers.some((t) => !t.to.isOrganizer) && (
         <div className="card-pad border-b border-line">
-          <p className="label">Suggested settle-up</p>
+          <p className="label">Suggested settle-up (someone besides the organiser is owed money)</p>
           <ul className="grid gap-2 sm:grid-cols-2">
             {transfers.map((t, i) => (
               <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
@@ -118,8 +103,8 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
       {requests.length === 0 ? (
         <EmptyState
           icon={Send}
-          title={transfers.length ? "No PayPal requests yet" : "Nothing to collect"}
-          text={transfers.length ? "When you're ready, request payments and each person gets a PayPal invoice." : "Add an expense and anyone who owes you will show up here."}
+          title={toRequest.length ? "No PayPal requests yet" : "Nothing to collect"}
+          text={toRequest.length ? "When you're ready, request payments and each person gets a PayPal invoice." : "Add an expense and anyone who owes you will show up here."}
         />
       ) : (
         <div className="overflow-x-auto">

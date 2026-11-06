@@ -1,13 +1,13 @@
 "use client";
 
-import { Bot, CircleAlert, CircleCheck, Hand, Play, ShieldCheck, User, Users, Zap } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { CircleAlert, CircleCheck, Hand, Play, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { on } from "@/lib/events";
 import { fmt } from "@/lib/money";
 import { timeAgo } from "@/lib/stats";
-import type { AuditActor, AutopilotSettings, Group } from "@/lib/types";
+import type { AutopilotSettings, Group } from "@/lib/types";
 import { api } from "./api";
-import { Alert, Badge, SectionHeader, Spinner } from "./ui";
+import { Alert, Badge, Dialog, Spinner } from "./ui";
 
 const DEFAULTS: AutopilotSettings = {
   enabled: false,
@@ -26,13 +26,6 @@ const TIMES = [
   { label: "3 days", v: 4320 },
   { label: "1 week", v: 10080 },
 ];
-
-const ACTOR: Record<AuditActor, { label: string; icon: typeof User; tone: "neutral" | "brand" | "warning" }> = {
-  you: { label: "You", icon: User, tone: "neutral" },
-  agent: { label: "Agent", icon: Bot, tone: "brand" },
-  autopilot: { label: "Autopilot", icon: Zap, tone: "warning" },
-  member: { label: "Member", icon: Users, tone: "neutral" },
-};
 
 function Toggle({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
@@ -113,33 +106,47 @@ export default function AutopilotPanel({ group, onChange }: { group: Group; onCh
     }
   }
 
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => on("open-autopilot", () => ref.current?.scrollIntoView({ behavior: "smooth", block: "start" })), []);
+  // Opened from the Autopilot summary card or the banner (no second copy on the page).
+  const [open, setOpen] = useState(false);
+  useEffect(() => on("open-autopilot", () => setOpen(true)), []);
 
-  const log = group.audit ?? [];
   const handedBack = group.requests.filter((r) => r.escalated && r.status !== "PAID" && r.status !== "MARKED_AS_PAID" && r.status !== "CANCELLED");
 
   return (
-    <section ref={ref} className="card scroll-mt-4">
-      <div className="card-pad border-b border-line">
-        <SectionHeader
-          icon={Zap}
-          title="Autopilot collection"
-          description="Set the rules once. SplitPay checks PayPal on a schedule, requests what's owed and follows up until everyone has paid."
-          actions={
-            <div className="flex items-center gap-3">
-              <Badge tone={saved.enabled ? "success" : "neutral"}>
-                {saved.enabled ? <CircleCheck className="h-3.5 w-3.5" aria-hidden /> : <Hand className="h-3.5 w-3.5" aria-hidden />}
-                {saved.enabled ? "On" : "Off"}
-              </Badge>
-              <Toggle on={saved.enabled} label="Autopilot" disabled={!!busy} onChange={(v) => save({ ...draft, enabled: v })} />
-            </div>
-          }
-        />
-      </div>
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      title="Autopilot collection"
+      size="lg"
+      footer={
+        <>
+          <button className="btn-secondary" onClick={() => setOpen(false)}>
+            Close
+          </button>
+          {dirty && (
+            <button className="btn-secondary" disabled={!!busy} onClick={() => save({ ...draft, enabled: saved.enabled })}>
+              {busy === "save" && <Spinner />} Save rules
+            </button>
+          )}
+          <button className="btn-primary" disabled={!!busy} onClick={runNow}>
+            {busy === "run" ? <Spinner /> : <Play className="h-4 w-4" aria-hidden />} Run now
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5">
+          <p className="text-sm text-muted">Set the rules once. SplitPay checks PayPal on a schedule, requests what&apos;s owed and follows up until everyone has paid.</p>
+          <div className="flex items-center gap-3">
+            <Badge tone={saved.enabled ? "success" : "neutral"}>
+              {saved.enabled ? <CircleCheck className="h-3.5 w-3.5" aria-hidden /> : <Hand className="h-3.5 w-3.5" aria-hidden />}
+              {saved.enabled ? "On" : "Off"}
+            </Badge>
+            <Toggle on={saved.enabled} label="Autopilot" disabled={!!busy} onChange={(v) => save({ ...draft, enabled: v })} />
+          </div>
+        </div>
 
-      <div className="card-pad space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="ap-first">First reminder after</label>
             <TimeSelect id="ap-first" value={draft.firstAfterMin} onChange={(v) => setDraft({ ...draft, firstAfterMin: v })} />
@@ -175,35 +182,23 @@ export default function AutopilotPanel({ group, onChange }: { group: Group; onCh
           Send PayPal requests automatically when someone owes money
         </label>
 
-        <div className="flex flex-wrap items-start gap-2 rounded-lg border border-line bg-slate-50/60 px-3 py-2.5 text-xs text-muted">
+        <div className="flex items-start gap-2 rounded-lg border border-line bg-slate-50/60 px-3 py-2.5 text-xs text-muted">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden />
           <span>
-            The rules decide what happens, and Claude only writes the wording of each reminder, getting firmer each time but always polite. Amounts always come from the
-            ledger. Nobody who has paid gets a reminder. After the last reminder, autopilot stops and hands it back to you.
+            The rules decide what happens, and Claude only writes the wording of each reminder, getting firmer each time but always polite. Amounts always come from the ledger. Nobody who
+            has paid gets a reminder. After the last reminder, autopilot stops and hands it back to you.
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-muted">
-            {saved.lastRunAt ? (
-              <>
-                Last run {timeAgo(saved.lastRunAt)}: <span className="text-ink">{saved.lastSummary}</span>
-              </>
-            ) : (
-              "Autopilot hasn't run yet."
-            )}
-          </p>
-          <div className="flex gap-2">
-            {dirty && (
-              <button className="btn-secondary" disabled={!!busy} onClick={() => save({ ...draft, enabled: saved.enabled })}>
-                {busy === "save" && <Spinner />} Save rules
-              </button>
-            )}
-            <button className="btn-primary" disabled={!!busy} onClick={runNow}>
-              {busy === "run" ? <Spinner /> : <Play className="h-4 w-4" aria-hidden />} Run now
-            </button>
-          </div>
-        </div>
+        <p className="text-xs text-muted">
+          {saved.lastRunAt ? (
+            <>
+              Last run {timeAgo(saved.lastRunAt)}: <span className="text-ink">{saved.lastSummary}</span>
+            </>
+          ) : (
+            "Autopilot hasn't run yet."
+          )}
+        </p>
 
         {result && <Alert tone="success">{result}</Alert>}
         {handedBack.length > 0 && (
@@ -217,32 +212,6 @@ export default function AutopilotPanel({ group, onChange }: { group: Group; onCh
         )}
         {err && <Alert>{err}</Alert>}
       </div>
-
-      <div className="border-t border-line">
-        <div className="flex items-center justify-between px-5 pt-4 sm:px-6">
-          <h3 className="text-sm font-semibold text-ink">Audit log</h3>
-          <span className="text-xs text-muted">Every action by you, the agent and autopilot</span>
-        </div>
-        {log.length === 0 ? (
-          <p className="px-5 py-5 text-sm text-muted sm:px-6">Nothing yet. Actions on this group will be recorded here.</p>
-        ) : (
-          <ul className="max-h-80 divide-y divide-line overflow-y-auto px-5 py-2 sm:px-6">
-            {log.slice(0, 50).map((e) => {
-              const a = ACTOR[e.actor];
-              return (
-                <li key={e.id} className="flex items-start gap-3 py-2.5">
-                  <Badge tone={a.tone}>
-                    <a.icon className="h-3.5 w-3.5" aria-hidden />
-                    {a.label}
-                  </Badge>
-                  <p className={`min-w-0 flex-1 text-sm ${e.ok ? "text-ink" : "text-danger"}`}>{e.detail}</p>
-                  <span className="shrink-0 text-xs text-muted">{timeAgo(e.at)}</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </section>
+    </Dialog>
   );
 }

@@ -116,3 +116,9 @@ body {
   background: var(--color-brand-600); transform: scaleX(0); transform-origin: left; transition: transform 0.2s ease;
 }
 .nav-link:hover::after { transform: scaleX(1); }
+
+/* AG Grid auto-height keeps a 150px minimum for its empty-state overlay; drop it so short ledgers don't leave a gap */
+.ag-layout-auto-height .ag-center-cols-viewport,
+.ag-layout-auto-height .ag-center-cols-container {
+  min-height: 0 !important;
+}
