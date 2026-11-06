@@ -2,114 +2,193 @@
 
 **Snap the bill. AI settles it.**
 
-SplitPay AI reads a receipt photo, understands how you want to split it in plain English, and uses an AI agent built on the **PayPal Agent Toolkit** to send everyone a PayPal request, track who has paid, and send polite reminders until the group is settled.
+SplitPay AI reads a receipt (or your group chat), understands how you want to split it in plain English, and uses an AI agent built on the **PayPal Agent Toolkit** to send everyone a PayPal invoice, track payments live through **PayPal webhooks**, and politely follow up until the group is settled.
 
-> Built for the PayPal AI Hackathon 2026. Runs entirely on the free PayPal **sandbox**.
+> Built for the **PayPal AI Hackathon 2026**. Everything runs on the free PayPal **sandbox**; no real money moves.
+
+**Live demo:** https://splitpay-ai-6ckm.onrender.com
+**Demo video:** _YouTube link_
+
+---
+
+## Contents
+
+- [The problem](#the-problem)
+- [What it does](#what-it-does)
+- [How PayPal is used](#how-paypal-is-used)
+- [How AI is used](#how-ai-is-used)
+- [Sponsor tools](#sponsor-tools)
+- [Guardrails](#guardrails)
+- [Testing instructions for judges](#testing-instructions-for-judges)
+- [Run it locally](#run-it-locally)
+- [Deploy on Render](#deploy-on-render)
+- [Architecture](#architecture)
+- [What's next](#whats-next)
 
 ---
 
 ## The problem
 
-After every trip, flat-share month or group dinner, one person pays and then spends a week chasing friends over chat. Splitting apps work out *who owes what*, but collecting the money is still manual, awkward and easy to forget.
+After every group trip, team booking or dinner, one person pays and then spends days chasing everyone else. Splitting apps work out *who owes what*, but collecting the money is still manual, awkward and easy to forget. SplitPay AI is built for that person: the community organiser who is tired of chasing money.
 
 ## What it does
 
-| Step | What happens | Tech |
-|---|---|---|
-| 📸 **Snap the receipt** | Claude reads every line item, tax, service charge and tip, and checks they add up to the total | Claude vision + structured outputs |
-| 💬 **Say how to split it** | "Raj doesn't drink, Priya had both brownies, Sam is vegetarian, tip split equally" becomes an exact item-by-item assignment | Claude structured outputs |
-| 🧮 **Exact money math** | The AI only decides *who shares what*. Deterministic code turns that into cents that always add up (largest-remainder rounding) | TypeScript |
-| 📊 **Group ledger** | Every expense and each person's share, with sorting, filtering and a totals row | AG Grid |
-| 📨 **Collect with PayPal** | One click sends each person a PayPal invoice for exactly what they owe; status syncs from PayPal | PayPal Agent Toolkit (Invoicing) |
-| 🤖 **Agent** | Chat: "Who still owes me?", "Remind whoever hasn't paid", "I paid $48 for the cab, split with Raj and Priya" | Claude tool use + PayPal Agent Toolkit |
-| 💬 **Paste the group chat** | Paste a WhatsApp/Telegram chat: Claude finds who paid for what and who it was for, skips plans and person-to-person paybacks, flags unknown names. You review every row before anything is saved | Claude structured outputs |
-| 📲 **Install + share from WhatsApp** | Installable app (PWA). On Android, SplitPay appears in the share menu: WhatsApp → Export chat → SplitPay, or Gallery → receipt → SplitPay. On iPhone: install from Safari, then Paste / Open .txt (or an iOS Shortcut that posts to `/share-target?json=1`) | Web App Manifest share_target |
-| ⚡ **Autopilot collection** | Set rules once (first reminder after X, repeat every Y, stop after N, per-person cap). A scheduler syncs PayPal, sends requests, and sends reminders whose wording Claude writes, getting firmer each time but always polite, then hands back to you | PayPal Agent Toolkit + Claude structured outputs |
-| 🧾 **Audit log** | Every action by you, the chat agent and autopilot is recorded with who did it | – |
+1. **Snap the bill.** Upload or photograph a receipt. Claude reads every line, the tax, service charge and tip, and checks they add up to the receipt total.
+2. **Or paste the group chat.** Paste a WhatsApp/Telegram chat: Claude finds who paid for what and who it was for, skips plans and person-to-person paybacks, and flags names that aren't in the group. You review every row before anything is saved.
+3. **Say how to split it.** *"Raj didn't drink, Priya had both brownies, tip split equally."* The AI decides who shares each item; deterministic code turns that into exact cents. Tap avatars to adjust any item.
+4. **Collect with PayPal.** One click sends each friend a PayPal invoice with **one line per receipt**. Friends pay with PayPal or a card, all at once or receipt by receipt.
+5. **Status updates by itself.** A verified **PayPal webhook** marks the invoice Paid the moment someone pays.
+6. **Autopilot follows up.** On a schedule the organiser sets, Autopilot sends requests and reminders (worded by Claude, firmer each time but always kind), then hands back to the organiser after the last one.
 
-### Guardrails (agentic payments done safely)
-- **The AI never sets amounts.** PayPal request amounts are always computed from the ledger; the agent can only pick *who* to request from.
-- **Per-request cap.** Requests above `MAX_REQUEST_CENTS` are blocked.
-- **No duplicate requests.** Amounts already requested (and still open) are subtracted.
-- **Check before nagging.** The agent refreshes PayPal status before sending reminders.
-- **Rules decide, AI writes.** Autopilot's actions are decided by deterministic rules; Claude only writes reminder wording.
-- **Hand-off, not harassment.** After the last reminder, autopilot stops and flags the person for the organiser.
-- **Refusal fallback.** Claude requests use server-side fallbacks so a classifier false-positive doesn't break a user action.
+Also included:
 
-## Architecture
-
-```
-Browser (Next.js + React + Tailwind + AG Grid)
-   │
-   ├── /api/receipt   ── Claude (vision, structured output) ──► items / tax / tip
-   ├── /api/split     ── Claude (structured output) ──► who-shares-what ──► exact cents (split.ts)
-   ├── /api/groups/:id/requests ─┐
-   └── /api/groups/:id/agent ────┤  Claude tool runner (agent.ts)
-                                 ▼
-                        service.ts (ledger + guardrails)
-                                 ▼
-                 PayPal Agent Toolkit  ──►  PayPal Invoicing API (sandbox)
-                 create_invoice · send_invoice · get_invoice ·
-                 send_invoice_reminder · cancel_sent_invoice
-```
-
-| File | Purpose |
+| Feature | Description |
 |---|---|
-| `src/lib/paypal.ts` | All PayPal calls, through `@paypal/agent-toolkit` |
-| `src/lib/ai.ts` | Receipt reading and split planning with Claude (`claude-opus-5-5`) |
-| `src/lib/agent.ts` | The SplitPay agent: Claude tool runner with PayPal-backed tools |
-| `src/lib/service.ts` | Ledger operations and payment guardrails, shared by UI and agent |
-| `src/lib/money.ts`, `split.ts` | Balances, debt simplification, exact cent allocation |
+| AI assistant | Chat agent working on real group data: "Who still owes me?", "Send PayPal requests", "Remind whoever hasn't paid", "Turn on autopilot" |
+| Private member links | Each member gets a link (no account needed) showing their balance, every receipt with the photo and their part of each item, and Pay buttons |
+| Settlement overview | Who paid, each share, balances, and each person's PayPal requests with Invoice / Remind / Cancel |
+| Audit log | Every action recorded with who did it: organiser, agent, Autopilot, member, or PayPal |
+| Group management | Cover photo, rename, add people later (with an optional safe re-split of past expenses), delete group (open invoices are cancelled first) |
+| Installable app | PWA with an Android share target: share a WhatsApp chat export or receipt photo straight into SplitPay |
 
-## Tools used
+## How PayPal is used
 
-- **PayPal Agent Toolkit** (`@paypal/agent-toolkit`): creating, sending, checking, reminding and cancelling invoices in the PayPal sandbox. The toolkit's tool executor is wrapped as Claude tools.
-- **Claude API** (`@anthropic-ai/sdk`, model `claude-opus-5-5`):
-  - Vision + structured outputs (Zod schema) to read receipts
-  - Structured outputs to turn plain-English split rules into item assignments
-  - Tool runner for the agent, whose tools call PayPal through the toolkit
-- **AG Grid Community** for the group ledger
-- **Next.js 15 / React 19 / Tailwind CSS 4**
-- **Render** for hosting (see below)
+| PayPal product | Where | What it does |
+|---|---|---|
+| **PayPal Agent Toolkit** (`@paypal/agent-toolkit`) | `src/lib/paypal.ts`, `src/lib/agent.ts` | Every PayPal action: `create_invoice`, `send_invoice`, `get_invoice`, `send_invoice_reminder`, `cancel_sent_invoice`. Used directly by the app and wrapped as tools for the Claude agent |
+| **PayPal Invoicing** (sandbox) | Payments | Itemised invoices per member (one line per receipt), pay-all or pay-per-receipt, reminders, cancellations |
+| **PayPal Webhooks** | `src/app/api/paypal/webhook/route.ts`, `src/lib/webhook.ts` | Events are verified with PayPal's `verify-webhook-signature` API; the invoice status is then re-read from PayPal and the ledger updates instantly |
+
+## How AI is used
+
+All AI runs on **Claude** through the Anthropic API (`@anthropic-ai/sdk`, model `claude-opus-5-5`), in `src/lib/ai.ts` and `src/lib/agent.ts`.
+
+| Task | Technique |
+|---|---|
+| Receipt reading | Vision input + structured output (Zod schema): items, quantities, tax, tip, total, confidence, notes |
+| Plain-English splits | Structured output assigning items to members with weights; reports names that aren't in the group |
+| Group-chat import | Structured output of candidate expenses, with skipped messages and reasons |
+| Reminder wording | Structured output; tone escalates by attempt; rules decide when and to whom |
+| AI assistant | SDK tool runner with tools for group summary, PayPal status refresh, requests, reminders, cancellations, adding expenses and Autopilot |
+
+Requests use adaptive thinking with explicit effort levels and server-side refusal fallbacks.
+
+## Sponsor tools
+
+| Sponsor | Use |
+|---|---|
+| **AG Grid** | The full group ledger (`src/components/Ledger.tsx`): one row per expense, a column per person's share, sorting, filtering, split explanations in tooltips, pinned totals row, themed with the Quartz theme API |
+| **Render** | Hosting (`render.yaml`), plus the cron-triggered Autopilot endpoint `/api/autopilot/tick` |
+
+## Guardrails
+
+An agent that moves money needs rules it can't talk its way around:
+
+- **The AI never sets amounts.** Every request amount comes from the ledger; the model only assigns items and writes words.
+- **Exact to the cent.** Largest-remainder rounding means shares always sum to the total.
+- **Never asked twice.** Each request records which receipts it covers; covered receipts can't be requested again.
+- **Spending cap** per person per request, enforced on the server.
+- **Confirmation** before sending or cancelling PayPal requests.
+- **Verified webhooks only:** unsigned or forged events are rejected and change nothing.
+- **Hand-off, not harassment:** Autopilot stops after the last reminder and returns the case to the organiser.
+- **Rate limits** on the AI endpoints for the public demo.
+
+## Testing instructions for judges
+
+**Live demo:** https://splitpay-ai-6ckm.onrender.com. The first load can take ~30 seconds while the free server wakes up.
+
+**Sandbox buyer account for paying invoices (test money only):**
+
+- Email: `splitpay-judge@personal.example.com`
+- Password: _provided in the Devpost submission_
+- Or pay by card on the invoice page with a test card from PayPal Developer Dashboard → Testing Tools → Credit Card Generator.
+
+**Try it in about 3 minutes:**
+
+1. Click **Try the live demo**. A four-person trip with a $320 villa is created.
+2. Click **Add expense** → **Upload receipt** (sample: [`public/samples/goa-dinner-receipt.png`](public/samples/goa-dinner-receipt.png)). Type *"Raj didn't drink"* → **Split with AI** → **Save expense**.
+3. Click **Request $X** in the banner and confirm. Real sandbox PayPal invoices are sent.
+4. In Raj's row, click the **↗** icon to open the PayPal invoice and pay it with the sandbox buyer account.
+5. Back in SplitPay, wait ~15 seconds without clicking: Raj turns **Paid** through a verified PayPal webhook, and the audit log says "PayPal confirmed…".
+6. Ask the assistant: *"Has anyone paid? Remind whoever hasn't."*
+7. Turn on **Autopilot** and click **Run now** to see automatic follow-ups.
+8. Optional: **Add expense → Paste group chat → Use sample chat**, or click the link icon next to a person to open their private page.
 
 ## Run it locally
 
-Requirements: Node.js 20+, a free [PayPal Developer](https://developer.paypal.com) account, an [Anthropic API key](https://console.anthropic.com).
+Requirements: Node.js 20.9+, a free [PayPal Developer](https://developer.paypal.com) account, an [Anthropic API key](https://console.anthropic.com).
 
 ```bash
 git clone https://github.com/Kamal934/splitpay-ai.git
 cd splitpay-ai
 npm install
-cp .env.example .env.local   # then fill in the values
+cp .env.example .env.local   # then fill in the values below
 npm run dev                  # http://localhost:3000
 ```
 
-### Getting the PayPal sandbox values
-1. developer.paypal.com → **Apps & Credentials** → toggle **Sandbox** → **Create App** → copy the Client ID and Secret.
-2. **Testing Tools → Sandbox Accounts**: copy the **Business** account email into `PAYPAL_SANDBOX_BUSINESS_EMAIL` (invoices come from this account).
-3. Create 2–3 **Personal** sandbox accounts and use their emails for your friends (or put them in `DEMO_EMAIL_1..3`). You can then open the invoice's payer link, log in as that personal account and pay it with sandbox money. Click **Check payments** in SplitPay and the status changes to PAID.
+| Variable | Required | Where to get it |
+|---|---|---|
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Yes | Developer Dashboard → Apps & Credentials → Sandbox → your app |
+| `PAYPAL_ENVIRONMENT` | Yes | `sandbox` |
+| `PAYPAL_SANDBOX_BUSINESS_EMAIL` | Yes | Testing Tools → Sandbox Accounts → your Business account (invoices come from it) |
+| `ANTHROPIC_API_KEY` | Yes | console.anthropic.com → API Keys |
+| `PAYPAL_WEBHOOK_ID` | For live status | Your app → Webhooks → Add webhook (`https://<your-app>/api/paypal/webhook`) → copy the ID |
+| `DEMO_EMAIL_1..3` | Optional | Sandbox Personal emails used by "Try the live demo" |
+| `CRON_SECRET` | Optional | Any random string; protects `/api/autopilot/tick` |
+| `MAX_REQUEST_CENTS`, `AI_RATE_LIMIT`, `DATA_DIR`, `AUTOPILOT_SCHEDULER`, `PUBLIC_URL` | Optional | See `.env.example` |
 
-### Try it in 60 seconds
-1. Open the site → **Try the live demo** (or **Open app → Load demo trip**).
-2. Upload `public/samples/goa-dinner-receipt.png`.
-3. Type: *"Raj doesn't drink, Priya had both brownies, Sam is vegetarian so no prawns or fish, tip split equally"* → **Split with AI** → **Save**.
-4. **Send PayPal requests**, or ask the agent: *"Send PayPal requests to everyone who owes"*.
-5. Ask the agent: *"Has anyone paid yet? Remind whoever hasn't."*
-6. **Add an expense → Paste group chat → Use sample chat → Find expenses**, review, then add.
-7. Turn on **Autopilot** with "2 minutes (demo)" timings and watch it collect on its own.
+**Paying in the sandbox:** create 2–3 Personal sandbox accounts, use their emails for group members, then open an invoice link, log in as that account and pay. Webhooks only reach a public URL, so locally use **Check payments** (or Autopilot) to refresh statuses.
 
 ## Deploy on Render
-1. New **Web Service** → connect this repo.
-2. Build command `npm install && npm run build`, start command `npm start`.
-3. Add the environment variables from `.env.example`.
-4. Optional: add a persistent disk and set `DATA_DIR` to its mount path so groups survive restarts.
-5. Autopilot runs inside the web service (checks every minute). On hosts without a long-running process, set `AUTOPILOT_SCHEDULER=off` and call `POST /api/autopilot/tick` from a cron job with `Authorization: Bearer $CRON_SECRET`.
+
+1. New **Web Service** → connect this repo (or use the included `render.yaml`).
+2. Build `npm ci && npm run build`, start `npm start`, Node 22, free plan is fine.
+3. Add the environment variables above.
+4. Add a PayPal webhook pointing at `https://<your-app>.onrender.com/api/paypal/webhook` and set `PAYPAL_WEBHOOK_ID`.
+5. Optional: a cron (e.g. cron-job.org) `POST`ing `/api/autopilot/tick` every 10 minutes with `Authorization: Bearer <CRON_SECRET>` keeps the free instance awake and runs Autopilot.
+
+The free plan's disk is temporary: saved groups reset on redeploy. "Try the live demo" always creates fresh data.
+
+## Architecture
+
+```
+Browser (Next.js 15 · React 19 · Tailwind CSS 4 · AG Grid)
+  ├─ /api/receipt, /api/split, /api/chat-import ─► Claude (vision + structured outputs)
+  ├─ /api/groups/:id/agent ─────────────────────► Claude tool runner ─┐
+  ├─ /api/groups/:id/requests, /api/me/:token/pay ──────────────────────┤
+  ├─ /api/groups/:id/autopilot, /api/autopilot/tick ── Autopilot ───────┤
+  │                                                                     ▼
+  │                                   service.ts (ledger + guardrails)
+  │                                                                     ▼
+  │                                   PayPal Agent Toolkit ─► PayPal Invoicing (sandbox)
+  └─ /api/paypal/webhook ◄── PayPal webhooks (verified) ─► status re-read ─► ledger
+```
+
+| File | Purpose |
+|---|---|
+| `src/lib/paypal.ts` | PayPal calls through the Agent Toolkit |
+| `src/lib/ai.ts` | Receipt reading, split planning, chat import, reminder wording (Claude) |
+| `src/lib/agent.ts` | The chat agent: Claude tool runner with PayPal-backed tools |
+| `src/lib/service.ts` | Ledger operations, requests, reminders, guardrails, audit log |
+| `src/lib/autopilot.ts` | Rule-based scheduled collection |
+| `src/lib/webhook.ts` | Webhook verification and status sync |
+| `src/lib/money.ts`, `split.ts`, `coverage.ts` | Exact cent allocation, balances, re-splits, "never asked twice" coverage |
+| `src/lib/access.ts` | Private member links, receipt photo storage, member view |
+| `src/components/GroupView.tsx`, `GroupScreen.tsx` | Organiser group screen |
+| `src/components/MemberPage.tsx` | A member's private page |
 
 ## What's next
-- PayPal **Payouts** so the organiser can pay back friends who fronted money (full many-to-many settlement)
-- Recurring splits for flatmates (rent, utilities) with PayPal subscriptions
-- Multi-currency trips
-- WhatsApp / Telegram bot front-end for the same agent
+
+- **Log in with PayPal** so organisers and members have accounts instead of private links.
+- **PayPal Payouts** to pay back members who paid more than their share.
+- Organisers invoicing from their own PayPal accounts through partner onboarding.
+- Recurring splits for flatmates and clubs, multi-currency trips, a persistent database.
+- A WhatsApp or Telegram bot front end for the same agent.
+
+## How it was built
+
+Built during the hackathon period (October to November 2026). Implementation was done with the help of **Claude Code**, an AI coding assistant; product direction, design decisions, PayPal configuration, testing and deployment by the author.
 
 ## License
-MIT. See [LICENSE](LICENSE).
+
+[MIT](LICENSE)
