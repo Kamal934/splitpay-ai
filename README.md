@@ -9,6 +9,19 @@ SplitPay AI reads a receipt (or your group chat), understands how you want to sp
 **Live demo:** https://splitpay-ai-6ckm.onrender.com
 **Demo video:** _YouTube link_
 
+![Group screen: settlement overview, PayPal status per person and the AI assistant](gallery/02-group-settlement.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="gallery/03-receipt-scan.png" alt="Claude reads every line of a receipt and checks it adds up"><br><sub>Claude reads every line of the receipt and checks it adds up</sub></td>
+    <td width="50%"><img src="gallery/05-member-pay-page.png" alt="A friend's private link: their share of every receipt and Pay with PayPal"><br><sub>Each friend gets a private link to view receipts and pay with PayPal</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="gallery/04-activity-autopilot-ledger.png" alt="Recent activity, Autopilot settings and the group ledger"><br><sub>Real-time activity, rule-based Autopilot and the group ledger</sub></td>
+    <td width="50%"><img src="gallery/06-dashboard.png" alt="Dashboard with collection status across groups"><br><sub>Dashboard: what's collected via PayPal and what's still pending</sub></td>
+  </tr>
+</table>
+
 ---
 
 ## Contents
