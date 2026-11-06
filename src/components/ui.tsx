@@ -213,13 +213,14 @@ const STAT_TONE = {
   neutral: "bg-slate-100 text-slate-500",
 } as const;
 
+const STAT_WASH = { brand: "bg-brand-200/40", success: "bg-emerald-200/40", warning: "bg-amber-200/50", neutral: "bg-slate-200/50" } as const;
+
 export function StatCard({
   icon: Icon,
   label,
   value,
   hint,
   tone = "neutral",
-  emphasis = false,
 }: {
   icon: LucideIcon;
   label: string;
@@ -229,15 +230,19 @@ export function StatCard({
   emphasis?: boolean;
 }) {
   return (
-    <div className="card card-pad transition-shadow hover:shadow-[0_4px_12px_rgba(16,24,40,0.06)]">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-muted">{label}</p>
-        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${STAT_TONE[tone]}`}>
-          <Icon className="h-4 w-4" aria-hidden />
+    <div className="card relative overflow-hidden p-5 transition-shadow hover:shadow-[0_6px_16px_rgba(16,24,40,0.06)]">
+      {/* decorative wash in the card's tone */}
+      <span className={`pointer-events-none absolute -bottom-10 -right-8 h-28 w-40 rounded-full blur-2xl ${STAT_WASH[tone]}`} aria-hidden />
+      <div className="relative flex items-start gap-3">
+        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${STAT_TONE[tone]}`}>
+          <Icon className="h-5 w-5" aria-hidden />
         </span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-muted">{label}</p>
+          <p className="num mt-0.5 text-xl font-semibold tracking-tight text-ink sm:text-2xl">{value}</p>
+          {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
+        </div>
       </div>
-      <p className={`num mt-2 text-xl font-semibold tracking-tight sm:text-2xl ${emphasis ? "text-ink" : "text-ink"}`}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }

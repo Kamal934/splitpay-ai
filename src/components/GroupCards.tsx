@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Bell, Bot, ChevronRight, CircleAlert, CircleCheck, Hand, History, PartyPopper, Receipt, RefreshCw, ScanLine, Send, Settings2, Sparkles, User, Users, Wallet, Zap, type LucideIcon } from "lucide-react";
+import { Ban, Bell, Bot, ChevronRight, CircleAlert, CircleCheck, Clock, Hand, History, PartyPopper, Receipt, RefreshCw, ScanLine, Send, Settings2, Sparkles, User, Users, Wallet, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { emit } from "@/lib/events";
 import { fmt } from "@/lib/money";
@@ -93,12 +93,26 @@ export function NextAction({ group, onAddExpense }: { group: Group; onAddExpense
   })();
 
   const Icon = cfg.icon;
+  const viaPayPal = st.key === "ready" || st.key === "collecting" || st.key === "settled_paypal";
   return (
-    <div className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${cfg.tone}`}>
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/80 text-brand-600 shadow-sm">
-        <Icon className="h-4 w-4" aria-hidden />
+    <div className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3.5 ${cfg.tone}`}>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-line">
+        {viaPayPal ? (
+          // Official PayPal mark (paypalobjects.com), shown only where PayPal is actually involved
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/brand/paypal-mark-color.svg" alt="PayPal" className="h-6 w-6" />
+        ) : (
+          <Icon className="h-5 w-5 text-brand-600" aria-hidden />
+        )}
       </span>
-      <p className="min-w-[200px] flex-1 text-sm text-ink">{cfg.text}</p>
+      <div className="min-w-[200px] flex-1">
+        <p className="text-sm text-ink">{cfg.text}</p>
+        {st.key === "collecting" && (
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+            <Clock className="h-3 w-3" aria-hidden /> {group.lastCheckedAt ? `Last checked with PayPal ${timeAgo(group.lastCheckedAt)}` : "Not checked with PayPal yet"}
+          </p>
+        )}
+      </div>
       {cfg.action}
     </div>
   );
@@ -157,18 +171,20 @@ export function GroupActivity({ group }: { group: Group }) {
   const [open, setOpen] = useState(false);
   const log = group.audit ?? [];
   return (
-    <div className="card card-pad">
-      <SectionHeader
-        icon={History}
-        title="Recent activity"
-        actions={
-          log.length > 0 && (
-            <button className="btn-ghost text-brand-700" onClick={() => setOpen(true)}>
-              View all <ChevronRight className="h-4 w-4" aria-hidden />
-            </button>
-          )
-        }
-      />
+    <div className="card min-w-0 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-50 text-brand-600">
+            <History className="h-4 w-4" aria-hidden />
+          </span>
+          <h2 className="whitespace-nowrap text-sm font-semibold text-ink">Recent activity</h2>
+        </div>
+        {log.length > 0 && (
+          <button className="btn-ghost h-7 whitespace-nowrap px-2 text-brand-700" onClick={() => setOpen(true)}>
+            View all <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
+        )}
+      </div>
       <Dialog open={open} onClose={() => setOpen(false)} title="Audit log" size="lg" footer={<button className="btn-secondary" onClick={() => setOpen(false)}>Close</button>}>
         <p className="mb-3">Every action on this group by you, the chat agent, autopilot and members, newest first.</p>
         <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto rounded-lg border border-line">

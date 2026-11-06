@@ -4,13 +4,12 @@ import { Code, FlaskConical, House, LayoutDashboard, Menu, Plus } from "lucide-r
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { fmt } from "@/lib/money";
-import { groupStats, groupStatus } from "@/lib/stats";
+import { fmt, initials } from "@/lib/money";
+import { groupStats, groupStatus, plural } from "@/lib/stats";
 import type { Group } from "@/lib/types";
 import { api } from "./api";
 import InstallApp from "./InstallApp";
 import Logo, { REPO } from "./Logo";
-import { Avatar } from "./ui";
 
 function NavLink({ href, active, children, onClick }: { href: string; active: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -47,7 +46,7 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
         </div>
         <div>
           <p className="flex items-center justify-between px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-            Groups {groups.length > 0 && <span className="num rounded-full bg-slate-100 px-1.5 text-[10px] text-muted">{groups.length}</span>}
+            My groups {groups.length > 0 && <span className="num rounded-full bg-slate-100 px-1.5 text-[10px] text-muted">{groups.length}</span>}
           </p>
           <div className="space-y-0.5">
             {groups.length === 0 && <p className="px-2.5 text-xs text-muted">No groups yet</p>}
@@ -56,14 +55,33 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
               const open = groupStats(g).open;
               const dot = { success: "bg-success", warning: "bg-warning", brand: "bg-brand-500", neutral: "bg-slate-300" }[st.tone];
               return (
-                <NavLink key={g.id} href={`/groups/${g.id}`} active={pathname === `/groups/${g.id}`} onClick={onNavigate}>
-                  <span className="relative">
-                    <Avatar name={g.name} id={g.id} size="sm" />
+                <Link
+                  key={g.id}
+                  href={`/groups/${g.id}`}
+                  onClick={onNavigate}
+                  aria-current={pathname === `/groups/${g.id}` ? "page" : undefined}
+                  className={`relative flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors ${
+                    pathname === `/groups/${g.id}` ? "bg-brand-50 text-brand-700" : "text-ink hover:bg-slate-50"
+                  }`}
+                >
+                  {pathname === `/groups/${g.id}` && <span className="absolute -left-3 top-2 h-7 w-[3px] rounded-r-full bg-brand-600" aria-hidden />}
+                  <span className="relative shrink-0">
+                    {g.coverId ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/api/receipts/${g.coverId}`} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                    ) : (
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[11px] font-semibold text-white">{initials(g.name)}</span>
+                    )}
                     <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${dot}`} title={st.label} />
                   </span>
-                  <span className="min-w-0 flex-1 truncate">{g.name}</span>
-                  {open > 0 && <span className="num shrink-0 text-[11px] text-muted">{fmt(open, g.currency)}</span>}
-                </NavLink>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{g.name}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {plural(g.members.length, "member")}
+                      {open > 0 && <> · <span className="num">{fmt(open, g.currency)}</span> open</>}
+                    </span>
+                  </span>
+                </Link>
               );
             })}
           </div>
@@ -77,11 +95,15 @@ function Sidebar({ groups, pathname, onNavigate }: { groups: Group[]; pathname: 
         <a href={REPO} target="_blank" rel="noreferrer" className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-muted hover:bg-slate-100 hover:text-ink">
           <Code className={ICON} aria-hidden /> Source code
         </a>
-        <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 px-2.5 py-2 text-xs text-amber-800">
-          <FlaskConical className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span>
-            <span className="font-medium">PayPal sandbox</span>
-            <span className="block text-amber-700/80">Test money only</span>
+        <div className="mt-2 flex items-center gap-2.5 rounded-xl border border-line bg-brand-50/50 px-3 py-2.5">
+          {/* Official PayPal mark (paypalobjects.com): this app really runs on the PayPal sandbox */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/paypal-mark-color.svg" alt="PayPal" className="h-7 w-7 shrink-0" />
+          <span className="min-w-0 text-xs">
+            <span className="block font-semibold text-ink">PayPal sandbox</span>
+            <span className="flex items-center gap-1 text-muted">
+              <FlaskConical className="h-3 w-3" aria-hidden /> Test mode active
+            </span>
           </span>
         </div>
       </div>

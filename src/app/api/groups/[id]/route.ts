@@ -15,7 +15,18 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 /** Edit member names / emails, or add new members (rows without an id). */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { members, includeIn = [] } = (await req.json()) as { members: MemberInput[]; includeIn?: string[] };
+    const body = (await req.json()) as { members?: MemberInput[]; includeIn?: string[]; name?: string };
+    const { members = [], includeIn = [] } = body;
+    // Rename only (Edit group)
+    if (body.name !== undefined && !body.members) {
+      const name = body.name.trim();
+      if (!name) throw new Error("Give the group a name");
+      if (name.length > 80) throw new Error("Keep the name under 80 characters");
+      await updateGroup((await params).id, (g) => {
+        g.name = name;
+      });
+      return ok(await getGroup((await params).id));
+    }
     const id = (await params).id;
     const log: { kind: string; detail: string; ok: boolean }[] = [];
     const g = await updateGroup(id, (g) => {

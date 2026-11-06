@@ -86,6 +86,8 @@ export type AutopilotSettings = {
   enabled: boolean;
   /** Automatically send PayPal requests for anything owed but not yet requested. */
   autoRequest: boolean;
+  /** Send reminders at all (default on). Off = autopilot only syncs and requests. */
+  remind?: boolean;
   /** Minutes after the request before the first reminder. */
   firstAfterMin: number;
   /** Minutes between later reminders. */
@@ -117,6 +119,10 @@ export type Group = {
   expenses: Expense[];
   requests: PaymentRequest[];
   autopilot?: AutopilotSettings;
+  /** Optional cover photo (stored like receipt photos). */
+  coverId?: string;
+  /** When PayPal statuses were last synced for this group. */
+  lastCheckedAt?: string;
   audit?: AuditEntry[];
   createdAt: string;
 };

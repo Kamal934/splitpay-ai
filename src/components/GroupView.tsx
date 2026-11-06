@@ -1,25 +1,24 @@
 "use client";
 
-import { ChartColumn, CircleCheck, CircleDashed, Clock, Receipt, Scale, Send, Users, Wallet } from "lucide-react";
+import { CircleCheck, CircleDashed, Clock, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fmt } from "@/lib/money";
-import { groupStats, groupStatus, plural } from "@/lib/stats";
+import { groupStats, plural } from "@/lib/stats";
 import type { Group } from "@/lib/types";
 import { OPEN_STATUSES } from "@/lib/types";
 import AddExpense, { type Incoming } from "./AddExpense";
-import { AutopilotSummary, GroupActivity, NextAction, SettlementPill } from "./GroupCards";
+import { GroupActivity, NextAction } from "./GroupCards";
+import GroupHero from "./GroupHero";
+import { AutopilotCard, LedgerMini, SettlementOverview } from "./GroupScreen";
 import AgentChat from "./AgentChat";
 import AutopilotPanel from "./AutopilotPanel";
 import { api } from "./api";
-import { PageBody, PageHeader } from "./AppShell";
-import CollectionBar from "./CollectionBar";
-import CopyLink from "./CopyLink";
-import DeleteGroup from "./DeleteGroup";
+import { PageBody } from "./AppShell";
 import Ledger from "./Ledger";
 import MembersEditor from "./MembersEditor";
 import SettleUp from "./SettleUp";
-import { Alert, Avatar, AvatarStack, Badge, SectionHeader, StatCard } from "./ui";
+import { Alert, StatCard } from "./ui";
 
 export default function GroupView({ id, share }: { id: string; share?: string }) {
   const router = useRouter();
@@ -84,133 +83,38 @@ export default function GroupView({ id, share }: { id: string; share?: string })
     );
 
   const s = groupStats(group);
+  const owedTotal = s.collected + s.open;
+  const openInvoices = group.requests.filter((r) => OPEN_STATUSES.includes(r.status)).length;
+  const toRequest = s.balances.filter((b) => b.requestableCents > 0).length;
 
   return (
     <>
-      <PageHeader
-        crumbs={[{ label: "Dashboard", href: "/app" }, { label: "Groups", href: "/app" }, { label: group.name }]}
-        title={group.name}
-        subtitle={
-          <span className="flex items-center gap-2">
-            <AvatarStack people={group.members} max={6} />
-            {plural(group.members.length, "person", "people")} · {plural(group.expenses.length, "expense")}
-            {(() => {
-              const st = groupStatus(group);
-              const Icon = { new: CircleDashed, ready: Send, collecting: Clock, payback: Wallet, settled_paypal: CircleCheck, settled_internal: CircleCheck }[st.key];
-              return (
-                <span title={st.hint}>
-                  <Badge tone={st.tone}>
-                    <Icon className="h-3.5 w-3.5" aria-hidden /> {st.label}
-                  </Badge>
-                </span>
-              );
-            })()}
-          </span>
-        }
-        actions={
-          <>
-            <button className="btn-secondary" onClick={() => setEditing(true)}>
-              <Users className="h-4 w-4" aria-hidden /> People & emails
-            </button>
-            <DeleteGroup group={group} />
-          </>
-        }
-      />
+      <GroupHero group={group} onChange={setGroup} onPeople={() => setEditing(true)} />
 
       <PageBody>
         <NextAction group={group} onAddExpense={() => document.getElementById("add-expense")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
 
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-          {(() => {
-            const owedTotal = s.collected + s.open;
-            const openInvoices = group.requests.filter((r) => OPEN_STATUSES.includes(r.status)).length;
-            const toRequest = s.balances.filter((b) => b.requestableCents > 0).length;
-            return (
-              <>
-                <StatCard icon={Receipt} tone="brand" label="Total spent" value={fmt(s.spent, group.currency)} hint={plural(group.expenses.length, "expense")} />
-                <StatCard
-                  icon={CircleCheck}
-                  tone="success"
-                  label="Collected via PayPal"
-                  value={fmt(s.collected, group.currency)}
-                  hint={owedTotal ? `${Math.round((s.collected / owedTotal) * 100)}% of ${fmt(owedTotal, group.currency)} owed` : "Nothing owed yet"}
-                />
-                <StatCard icon={Clock} tone="warning" label="Pending in PayPal" value={fmt(s.pending, group.currency)} hint={plural(openInvoices, "open invoice")} />
-                <StatCard icon={CircleDashed} tone="neutral" label="Not requested yet" value={fmt(s.notRequested, group.currency)} hint={toRequest ? `${plural(toRequest, "person", "people")} to request` : "Everyone requested"} />
-              </>
-            );
-          })()}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+          <StatCard icon={Wallet} tone="brand" label="Total spent" value={fmt(s.spent, group.currency)} hint={plural(group.expenses.length, "expense")} />
+          <StatCard
+            icon={CircleCheck}
+            tone="success"
+            label="Collected via PayPal"
+            value={fmt(s.collected, group.currency)}
+            hint={owedTotal ? `${Math.round((s.collected / owedTotal) * 100)}% of ${fmt(owedTotal, group.currency)} owed` : "Nothing owed yet"}
+          />
+          <StatCard icon={Clock} tone="warning" label="Pending in PayPal" value={fmt(s.pending, group.currency)} hint={plural(openInvoices, "open invoice")} />
+          <StatCard icon={CircleDashed} tone="neutral" label="Not requested yet" value={fmt(s.notRequested, group.currency)} hint={toRequest ? `${plural(toRequest, "person", "people")} to request` : "Everyone requested"} />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-6">
-            <div className="card card-pad">
-              <SectionHeader icon={ChartColumn} title="Collection overview" description="How much of what's owed has come back through PayPal." />
-              <div className="mt-5">
-                <CollectionBar
-                  parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }}
-                  currency={group.currency}
-                  emptyText={s.spent > 0 ? "Nothing to collect. Every expense is either paid back or covered by the person who paid it." : undefined}
-                />
-              </div>
-            </div>
+            <SettlementOverview group={group} />
 
-            <div className="card">
-              <div className="card-pad pb-4">
-                <SectionHeader
-                  icon={Scale}
-                  title="Balances"
-                  description="Who paid, their share, and where they stand. Send each person their private Link to see every receipt and pay."
-                  actions={<SettlementPill group={group} />}
-                />
-              </div>
-              <div className="overflow-x-auto border-t border-line">
-                <table className="w-full min-w-[560px]">
-                  <thead className="bg-slate-50/70">
-                    <tr>
-                      <th className="th">Person</th>
-                      <th className="th text-right">Paid</th>
-                      <th className="th text-right">Share</th>
-                      <th className="th text-right">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {s.balances.map((b) => (
-                      <tr key={b.member.id}>
-                        <td className="td">
-                          <div className="flex items-center gap-2.5">
-                            <Avatar id={b.member.id} name={b.member.name} size="sm" />
-                            <span className="font-medium text-ink">{b.member.name}</span>
-                            {b.member.isOrganizer && <Badge tone="brand">Organiser</Badge>}
-                            {!b.member.isOrganizer && <CopyLink token={b.member.accessToken} name={b.member.name} />}
-                          </div>
-                        </td>
-                        <td className="td num text-right text-muted">{fmt(b.paidCents, group.currency)}</td>
-                        <td className="td num text-right text-muted">{fmt(b.shareCents, group.currency)}</td>
-                        <td className="td text-right">
-                          {b.netCents === 0 ? (
-                            <Badge tone="success">
-                              <CircleCheck className="h-3.5 w-3.5" aria-hidden /> Settled
-                            </Badge>
-                          ) : b.netCents > 0 ? (
-                            <span className="num font-semibold text-success">Gets back {fmt(b.netCents, group.currency)}</span>
-                          ) : (
-                            <span className="num font-semibold text-danger">
-                              Owes {fmt(-b.netCents, group.currency)}
-                              {b.pendingCents > 0 && <span className="block text-xs font-normal text-muted">{fmt(b.pendingCents, group.currency)} requested</span>}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               <GroupActivity group={group} />
-              <AutopilotSummary group={group} />
+              <AutopilotCard group={group} onChange={setGroup} />
+              <LedgerMini group={group} />
             </div>
 
             {shareErr && <Alert>{shareErr}</Alert>}
@@ -218,8 +122,10 @@ export default function GroupView({ id, share }: { id: string; share?: string })
               <AddExpense group={group} onAdded={setGroup} incoming={incoming} />
             </div>
             <SettleUp group={group} onChange={setGroup} />
+            <div id="ledger" className="scroll-mt-4">
+              <Ledger group={group} onChange={setGroup} />
+            </div>
             <AutopilotPanel group={group} onChange={setGroup} />
-            <Ledger group={group} onChange={setGroup} />
           </div>
 
           <div className="xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">

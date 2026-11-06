@@ -24,6 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         ...before,
         enabled: !!s.enabled,
         autoRequest: s.autoRequest ?? before.autoRequest,
+        remind: s.remind ?? before.remind ?? true,
         firstAfterMin: clamp(s.firstAfterMin, 1, 30 * 1440, before.firstAfterMin),
         repeatEveryMin: clamp(s.repeatEveryMin, 1, 30 * 1440, before.repeatEveryMin),
         maxReminders: clamp(s.maxReminders, 1, 5, before.maxReminders),

@@ -79,6 +79,7 @@ export async function runAutopilot(groupId: string): Promise<AutopilotRun> {
         }
         continue;
       }
+      if (s.remind === false) continue;
       const wait = r.remindersSent === 0 ? s.firstAfterMin : s.repeatEveryMin;
       const since = minutesSince(r.lastReminderAt ?? r.createdAt);
       if (since < wait - 0.25) continue;

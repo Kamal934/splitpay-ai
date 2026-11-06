@@ -158,6 +158,7 @@ export async function refreshStatuses(groupId: string, log: ActionLog[] = []) {
     }),
   );
   const g = await updateGroup(groupId, (g) => {
+    g.lastCheckedAt = new Date().toISOString();
     for (const r of g.requests) {
       const s = updates.get(r.id);
       if (s) {
