@@ -20,6 +20,7 @@ type Receipt = {
   total: number;
   confidence: "high" | "medium" | "low";
   notes: string;
+  receiptId?: string;
 };
 type Mode = "proportional" | "equal";
 type Plan = { items: PlanItem[]; tax_mode: Mode; tip_mode: Mode; explanation: string; warnings: string; unmatched_names: string[] };
@@ -29,7 +30,25 @@ const READ_STEPS = ["Uploading image", "Reading line items", "Checking totals"];
 
 export type Incoming = { kind: "chat"; text: string } | { kind: "image"; file: File };
 
-export default function AddExpense({ group, onAdded, incoming }: { group: Group; onAdded: (g: Group) => void; incoming?: Incoming | null }) {
+export default function AddExpense({
+  group,
+  onAdded,
+  incoming,
+  saveUrl,
+  payerId,
+  allowChat = true,
+  title = "Add an expense",
+}: {
+  group: Group;
+  onAdded: (g: Group) => void;
+  incoming?: Incoming | null;
+  /** Where to save (the member page uses its own endpoint). */
+  saveUrl?: string;
+  /** Fix the payer (a member adding a bill they paid). */
+  payerId?: string;
+  allowChat?: boolean;
+  title?: string;
+}) {
   const organizer = group.members.find((m) => m.isOrganizer) ?? group.members[0];
   const fileRef = useRef<HTMLInputElement>(null);
   const [img, setImg] = useState("");
@@ -37,7 +56,7 @@ export default function AddExpense({ group, onAdded, incoming }: { group: Group;
   const [readStep, setReadStep] = useState(0);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [description, setDescription] = useState("");
-  const [paidBy, setPaidBy] = useState(organizer.id);
+  const [paidBy, setPaidBy] = useState(payerId ?? organizer.id);
   const [items, setItems] = useState<Item[]>([]);
   const [tax, setTax] = useState(0);
   const [tip, setTip] = useState(0);
@@ -90,6 +109,7 @@ export default function AddExpense({ group, onAdded, incoming }: { group: Group;
     setImg("");
     setReceipt(null);
     setDescription("");
+    setPaidBy(payerId ?? organizer.id);
     setItems([]);
     setTax(0);
     setTip(0);
@@ -166,7 +186,7 @@ export default function AddExpense({ group, onAdded, incoming }: { group: Group;
     if (!plan || !preview) return;
     setBusy("saving");
     try {
-      const g = await api<Group>(`/api/groups/${group.id}/expenses`, {
+      const g = await api<Group>(saveUrl ?? `/api/groups/${group.id}/expenses`, {
         method: "POST",
         body: {
           description: description || "Shared expense",
@@ -179,6 +199,7 @@ export default function AddExpense({ group, onAdded, incoming }: { group: Group;
           splitInstruction: instruction,
           aiExplanation: plan.explanation,
           source: img ? "receipt" : "manual",
+          receiptId: receipt?.receiptId,
         },
       });
       onAdded(g);
@@ -202,7 +223,7 @@ export default function AddExpense({ group, onAdded, incoming }: { group: Group;
     <section ref={sectionRef} className="card scroll-mt-4">
       <div className="card-pad border-b border-line">
         <SectionHeader
-          title="Add an expense"
+          title={title}
           description={chatMode ? "Paste your group chat and Claude finds who paid for what." : "Scan a receipt, paste a group chat, or enter items, then describe the split in plain English."}
           actions={
             hasDraft && (
@@ -264,9 +285,11 @@ export default function AddExpense({ group, onAdded, incoming }: { group: Group;
               <button className="btn-primary" onClick={() => fileRef.current?.click()}>
                 <Upload className="h-4 w-4" aria-hidden /> Upload receipt
               </button>
-              <button className="btn-secondary" onClick={() => (setSaved(""), setChatMode(true))}>
-                <MessageSquareText className="h-4 w-4" aria-hidden /> Paste group chat
-              </button>
+              {allowChat && (
+                <button className="btn-secondary" onClick={() => (setSaved(""), setChatMode(true))}>
+                  <MessageSquareText className="h-4 w-4" aria-hidden /> Paste group chat
+                </button>
+              )}
               <button className="btn-secondary" onClick={() => setItems([{ name: "", amount: 0 }])}>
                 Enter manually
               </button>
@@ -328,7 +351,7 @@ export default function AddExpense({ group, onAdded, incoming }: { group: Group;
                     <label className="label" htmlFor="payer">
                       Paid by
                     </label>
-                    <select id="payer" className="input" value={paidBy} onChange={(e) => setPaidBy(e.target.value)}>
+                    <select id="payer" className="input" value={paidBy} disabled={!!payerId} onChange={(e) => setPaidBy(e.target.value)}>
                       {group.members.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name}

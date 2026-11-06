@@ -58,7 +58,13 @@ export async function sendInvoice(
   member: Member,
   cents: number,
   note: string,
+  lines?: { name: string; cents: number }[] | null,
 ): Promise<Pick<PaymentRequest, "invoiceId" | "payerUrl" | "status">> {
+  // One line per receipt when the lines add up exactly; otherwise a single total line.
+  const useLines = !!lines?.length && lines.reduce((a, l) => a + l.cents, 0) === cents && lines.every((l) => l.cents > 0);
+  const items = useLines
+    ? lines!.map((l) => ({ name: l.name.slice(0, 200), quantity: "1", unit_amount: { currency_code: group.currency, value: fromCents(l.cents) } }))
+    : [{ name: `Your share · ${group.name}`.slice(0, 200), quantity: "1", unit_amount: { currency_code: group.currency, value: fromCents(cents) } }];
   const [given, ...rest] = member.name.trim().split(/\s+/);
   const created = await paypalTool<{ href: string }>("create_invoice", {
     currency_code: group.currency,
@@ -68,13 +74,7 @@ export async function sendInvoice(
     primary_recipients: [
       { billing_info: { email_address: member.email, name: { given_name: given || member.name, surname: rest.join(" ") || "-" } } },
     ],
-    items: [
-      {
-        name: `Your share · ${group.name}`.slice(0, 200),
-        quantity: "1",
-        unit_amount: { currency_code: group.currency, value: fromCents(cents) },
-      },
-    ],
+    items,
   });
   const invoiceId = idFromHref(created.href);
   const sent = await paypalTool<{ href?: string }>("send_invoice", {

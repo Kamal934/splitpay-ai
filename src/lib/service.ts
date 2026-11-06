@@ -1,5 +1,6 @@
 import "server-only";
 import { getGroup, newId, updateGroup } from "./db";
+import { memberLink } from "./access";
 import { computeBalances, fmt } from "./money";
 import { cancelInvoice, getInvoiceStatus, remindInvoice, sendInvoice } from "./paypal";
 import { computeShares } from "./split";
@@ -25,6 +26,20 @@ export async function audit(groupId: string, actor: AuditActor, log: ActionLog[]
     const entries = log.map((l) => ({ id: newId("aud"), at, actor, kind: l.kind, detail: l.detail, ok: l.ok }));
     g.audit = [...entries.reverse(), ...(g.audit ?? [])].slice(0, 200);
   });
+}
+
+/**
+ * Lines for an itemised invoice: this member's share of each expense added since their
+ * last active request. Returns null when that can't account exactly for the amount
+ * (e.g. they also paid a bill), so the caller falls back to one total line.
+ */
+export function invoiceLines(group: Group, memberId: string, cents: number) {
+  const active = group.requests.filter((r) => r.memberId === memberId && r.status !== "CANCELLED" && r.status !== "ERROR");
+  const since = active.reduce((a, r) => (r.createdAt > a ? r.createdAt : a), "");
+  const exps = group.expenses.filter((e) => e.createdAt > since);
+  if (exps.some((e) => e.paidBy === memberId)) return null;
+  const lines = exps.map((e) => ({ name: e.description, cents: e.shares.find((s) => s.memberId === memberId)?.cents ?? 0 })).filter((l) => l.cents > 0);
+  return lines.reduce((a, l) => a + l.cents, 0) === cents ? lines : null;
 }
 
 /** Send PayPal invoices for whatever each member still owes the organiser. Amounts always come from the ledger. */
@@ -59,7 +74,11 @@ export async function requestPayments(
       log.push({ kind: "request", detail: `${b.member.name}: ${req.error}`, ok: false });
     } else {
       try {
-        Object.assign(req, await sendInvoice(group, b.member, req.cents, note));
+        const lines = invoiceLines(group, b.member.id, req.cents);
+        const link = memberLink(b.member);
+        const breakdown = lines ? "" : ` Your balance covers every expense in the group, minus anything you paid.`;
+        const fullNote = `${note}${breakdown}${link ? ` See every receipt and how it was split: ${link}` : ""}`.slice(0, 3900);
+        Object.assign(req, await sendInvoice(group, b.member, req.cents, fullNote, lines));
         log.push({ kind: "request", detail: `Sent ${b.member.name} a PayPal request for ${fmt(req.cents, group.currency)}`, ok: true });
       } catch (e) {
         req.status = "ERROR";
@@ -148,6 +167,7 @@ export type NewExpense = {
   splitInstruction?: string;
   aiExplanation?: string;
   source: "receipt" | "manual";
+  receiptId?: string;
 };
 
 export async function addExpense(groupId: string, input: NewExpense) {
@@ -165,6 +185,7 @@ export async function addExpense(groupId: string, input: NewExpense) {
       tipCents: input.tipCents,
       shares,
       modes: input.modes,
+      receiptId: input.receiptId && /^[a-f0-9]{32}$/.test(input.receiptId) ? input.receiptId : undefined,
       splitInstruction: input.splitInstruction,
       aiExplanation: input.aiExplanation,
       source: input.source,

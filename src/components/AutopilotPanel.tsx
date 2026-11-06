@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, CircleAlert, CircleCheck, Hand, Play, ShieldCheck, User, Zap } from "lucide-react";
+import { Bot, CircleAlert, CircleCheck, Hand, Play, ShieldCheck, User, Users, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fmt } from "@/lib/money";
 import { timeAgo } from "@/lib/stats";
@@ -30,6 +30,7 @@ const ACTOR: Record<AuditActor, { label: string; icon: typeof User; tone: "neutr
   you: { label: "You", icon: User, tone: "neutral" },
   agent: { label: "Agent", icon: Bot, tone: "brand" },
   autopilot: { label: "Autopilot", icon: Zap, tone: "warning" },
+  member: { label: "Member", icon: Users, tone: "neutral" },
 };
 
 function Toggle({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {

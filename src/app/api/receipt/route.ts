@@ -1,3 +1,4 @@
+import { saveReceiptImage } from "@/lib/access";
 import { readReceipt } from "@/lib/ai";
 import { fail, ok } from "@/lib/http";
 import { checkAiLimit } from "@/lib/ratelimit";
@@ -14,8 +15,10 @@ export async function POST(req: Request) {
     if (file.size > 5 * 1024 * 1024) throw new Error("Image too large (max 5 MB)");
     const type = TYPES.find((t) => t === file.type);
     if (!type) throw new Error("Use a JPG, PNG, WEBP or GIF image");
-    const b64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-    return ok(await readReceipt(b64, type));
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const parsed = await readReceipt(bytes.toString("base64"), type);
+    const receiptId = await saveReceiptImage(bytes, type);
+    return ok({ ...parsed, receiptId });
   } catch (e) {
     return fail(e);
   }

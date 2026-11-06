@@ -12,6 +12,7 @@ import AutopilotPanel from "./AutopilotPanel";
 import { api } from "./api";
 import { PageBody, PageHeader } from "./AppShell";
 import CollectionBar from "./CollectionBar";
+import CopyLink from "./CopyLink";
 import DeleteGroup from "./DeleteGroup";
 import Ledger from "./Ledger";
 import MembersEditor from "./MembersEditor";
@@ -123,7 +124,7 @@ export default function GroupView({ id, share }: { id: string; share?: string })
           <div className="min-w-0 space-y-6">
             <div className="card">
               <div className="card-pad">
-                <SectionHeader title="Balances" description="What each person paid, their share, and where they stand." />
+                <SectionHeader title="Balances" description="What each person paid, their share, and where they stand. Send each person their private Link to see every receipt and pay." />
                 <div className="mt-5">
                   <CollectionBar parts={{ collected: s.collected, pending: s.pending, notRequested: s.notRequested }} currency={group.currency} />
                 </div>
@@ -146,6 +147,7 @@ export default function GroupView({ id, share }: { id: string; share?: string })
                             <Avatar id={b.member.id} name={b.member.name} size="sm" />
                             <span className="font-medium text-ink">{b.member.name}</span>
                             {b.member.isOrganizer && <Badge tone="brand">Organiser</Badge>}
+                            {!b.member.isOrganizer && <CopyLink token={b.member.accessToken} name={b.member.name} />}
                           </div>
                         </td>
                         <td className="td num text-right text-muted">{fmt(b.paidCents, group.currency)}</td>

@@ -1,4 +1,5 @@
 import { deleteGroup, getGroup, newId, updateGroup } from "@/lib/db";
+import { ensureTokens, withTokens } from "@/lib/access";
 import { fail, ok } from "@/lib/http";
 import { memberProblems, type MemberInput } from "@/lib/members";
 import { cancelInvoice } from "@/lib/paypal";
@@ -8,7 +9,7 @@ import { expenseLock, resplitWithNewMembers } from "@/lib/split";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const g = await getGroup((await params).id);
-  return g ? ok(g) : fail("Group not found", 404);
+  return g ? ok(await withTokens(g)) : fail("Group not found", 404);
 }
 
 /** Edit member names / emails, or add new members (rows without an id). */
@@ -47,6 +48,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
       if (added.length) log.unshift({ kind: "member", detail: `Added ${added.map((m) => m.name).join(", ")} to the group`, ok: true });
       g.members = next;
+      ensureTokens(g);
     });
     await audit(id, "you", log);
     return ok((await getGroup(id)) ?? g);

@@ -3,6 +3,8 @@ export type Member = {
   name: string;
   email: string;
   isOrganizer: boolean;
+  /** Secret for this person's private link (/me/<token>). Lets them see receipts and pay without an account. */
+  accessToken?: string;
 };
 
 export type ExpenseShare = {
@@ -37,6 +39,8 @@ export type Expense = {
   splitInstruction?: string;
   aiExplanation?: string;
   source: "receipt" | "manual";
+  /** Stored receipt photo, if this came from a scan. */
+  receiptId?: string;
   createdAt: string;
 };
 
@@ -90,7 +94,7 @@ export type AutopilotSettings = {
   lastSummary?: string;
 };
 
-export type AuditActor = "you" | "agent" | "autopilot";
+export type AuditActor = "you" | "agent" | "autopilot" | "member";
 
 export type AuditEntry = {
   id: string;

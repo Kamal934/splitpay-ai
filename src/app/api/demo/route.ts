@@ -1,3 +1,4 @@
+import { ensureTokens } from "@/lib/access";
 import { createGroup, newId } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import type { Group } from "@/lib/types";
@@ -6,7 +7,7 @@ import type { Group } from "@/lib/types";
 export async function POST() {
   try {
     const m = (name: string, email: string, isOrganizer = false) => ({ id: newId("mem"), name, email, isOrganizer });
-    const you = m("You (Organiser)", process.env.PAYPAL_SANDBOX_BUSINESS_EMAIL || "organiser@example.com", true);
+    const you = m("Kamal", process.env.PAYPAL_SANDBOX_BUSINESS_EMAIL || "organiser@example.com", true);
     const raj = m("Raj Mehta", process.env.DEMO_EMAIL_1 || "raj.demo@example.com");
     const priya = m("Priya Shah", process.env.DEMO_EMAIL_2 || "priya.demo@example.com");
     const sam = m("Sam Lee", process.env.DEMO_EMAIL_3 || "sam.demo@example.com");
@@ -36,6 +37,7 @@ export async function POST() {
         },
       ],
     };
+    ensureTokens(group);
     return ok(await createGroup(group), 201);
   } catch (e) {
     return fail(e);

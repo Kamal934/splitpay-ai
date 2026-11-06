@@ -1,3 +1,4 @@
+import { ensureTokens } from "@/lib/access";
 import { createGroup, listGroups, newId } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { memberProblems } from "@/lib/members";
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
       requests: [],
       createdAt: new Date().toISOString(),
     };
+    ensureTokens(group);
     return ok(await createGroup(group), 201);
   } catch (e) {
     return fail(e);
