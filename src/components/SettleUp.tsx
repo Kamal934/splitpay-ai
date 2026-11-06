@@ -126,7 +126,10 @@ export default function SettleUp({ group, onChange }: { group: Group; onChange: 
                         </div>
                       </div>
                     </td>
-                    <td className="td num text-right font-medium text-ink">{fmt(r.cents, group.currency)}</td>
+                    <td className="td text-right">
+                      <span className="num font-medium text-ink">{fmt(r.cents, group.currency)}</span>
+                      <span className="block max-w-[160px] truncate text-xs text-muted" title={r.label ?? undefined}>{r.label ?? "All receipts"}</span>
+                    </td>
                     <td className="td">
                       <StatusBadge status={r.status} title={r.error} />
                       <p className="mt-1 text-xs text-muted">

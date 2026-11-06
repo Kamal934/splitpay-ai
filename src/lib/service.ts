@@ -1,6 +1,7 @@
 import "server-only";
 import { getGroup, newId, updateGroup } from "./db";
 import { memberLink } from "./access";
+import { coveringRequest } from "./coverage";
 import { computeBalances, fmt } from "./money";
 import { cancelInvoice, getInvoiceStatus, remindInvoice, sendInvoice } from "./paypal";
 import { computeShares } from "./split";
@@ -34,12 +35,55 @@ export async function audit(groupId: string, actor: AuditActor, log: ActionLog[]
  * (e.g. they also paid a bill), so the caller falls back to one total line.
  */
 export function invoiceLines(group: Group, memberId: string, cents: number) {
-  const active = group.requests.filter((r) => r.memberId === memberId && r.status !== "CANCELLED" && r.status !== "ERROR");
-  const since = active.reduce((a, r) => (r.createdAt > a ? r.createdAt : a), "");
-  const exps = group.expenses.filter((e) => e.createdAt > since);
+  // Receipts not yet covered by any active request (pay-all or per-receipt).
+  const exps = group.expenses.filter((e) => !coveringRequest(group, memberId, e));
   if (exps.some((e) => e.paidBy === memberId)) return null;
-  const lines = exps.map((e) => ({ name: e.description, cents: e.shares.find((s) => s.memberId === memberId)?.cents ?? 0 })).filter((l) => l.cents > 0);
-  return lines.reduce((a, l) => a + l.cents, 0) === cents ? lines : null;
+  const lines = exps
+    .map((e) => ({ expenseId: e.id, name: e.description, cents: e.shares.find((s) => s.memberId === memberId)?.cents ?? 0 }))
+    .filter((l) => l.cents > 0);
+  return lines.length && lines.reduce((a, l) => a + l.cents, 0) === cents ? lines : null;
+}
+
+/**
+ * A member pays their share of one receipt. Only allowed when that share isn't
+ * already covered by another request, they didn't pay the receipt themselves,
+ * and it doesn't exceed what they owe overall.
+ */
+export async function requestForExpense(groupId: string, memberId: string, expenseId: string, log: ActionLog[] = []) {
+  const group = await mustGroup(groupId);
+  const member = group.members.find((m) => m.id === memberId);
+  const e = group.expenses.find((x) => x.id === expenseId);
+  if (!member || !e) throw new Error("Receipt not found");
+  if (e.paidBy === memberId) throw new Error("You paid this one, so there's nothing to pay.");
+  const share = e.shares.find((s) => s.memberId === memberId)?.cents ?? 0;
+  if (share <= 0) throw new Error("You don't have a share in this receipt.");
+  const covered = coveringRequest(group, memberId, e);
+  if (covered) throw new Error("This receipt is already included in a PayPal request.");
+  const owed = computeBalances(group).find((b) => b.member.id === memberId)?.requestableCents ?? 0;
+  if (share > owed) throw new Error("Bills you paid already cover part of this. Use Pay all instead.");
+  if (share > MAX_REQUEST_CENTS) throw new Error("This is over the request limit.");
+
+  const now = new Date().toISOString();
+  const req: PaymentRequest = {
+    id: newId("req"),
+    memberId,
+    cents: share,
+    status: "DRAFT",
+    note: `Your share of ${e.description}`,
+    remindersSent: 0,
+    expenseIds: [e.id],
+    label: e.description,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const link = memberLink(member);
+  const note = `Your share of "${e.description}" from ${group.name}.${link ? ` See the receipt and how it was split: ${link}` : ""}`;
+  Object.assign(req, await sendInvoice(group, member, share, note, [{ name: e.description, cents: share }]));
+  await updateGroup(groupId, (g) => {
+    g.requests.push(req);
+  });
+  log.push({ kind: "request", detail: `${member.name} chose to pay “${e.description}” (${fmt(share, group.currency)}) through PayPal`, ok: true });
+  return req;
 }
 
 /** Send PayPal invoices for whatever each member still owes the organiser. Amounts always come from the ledger. */
@@ -79,6 +123,10 @@ export async function requestPayments(
         const breakdown = lines ? "" : ` Your balance covers every expense in the group, minus anything you paid.`;
         const fullNote = `${note}${breakdown}${link ? ` See every receipt and how it was split: ${link}` : ""}`.slice(0, 3900);
         Object.assign(req, await sendInvoice(group, b.member, req.cents, fullNote, lines));
+        if (lines) {
+          req.expenseIds = lines.map((l) => l.expenseId);
+          req.label = lines.length === 1 ? lines[0].name : `${lines.length} receipts`;
+        }
         log.push({ kind: "request", detail: `Sent ${b.member.name} a PayPal request for ${fmt(req.cents, group.currency)}`, ok: true });
       } catch (e) {
         req.status = "ERROR";

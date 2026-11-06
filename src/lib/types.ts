@@ -69,6 +69,10 @@ export type PaymentRequest = {
   note?: string;
   error?: string;
   remindersSent: number;
+  /** Receipts this request covers. Missing = a "pay all" request covering everything added before it. */
+  expenseIds?: string[];
+  /** Short label, e.g. the receipt name for a per-receipt payment. */
+  label?: string;
   /** When the last reminder went out (autopilot uses this for spacing). */
   lastReminderAt?: string;
   /** Set once autopilot has used up its reminders and handed this back to the organiser. */

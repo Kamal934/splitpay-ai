@@ -3,8 +3,10 @@ import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { listGroups, updateGroup } from "./db";
+import { coveringRequest } from "./coverage";
 import { allocate, computeBalances } from "./money";
 import type { Group, Member } from "./types";
+import { OPEN_STATUSES, PAID_STATUSES } from "./types";
 
 /* ---------- Private member links ---------- */
 
@@ -87,6 +89,20 @@ export function memberView(g: Group, me: Member) {
     });
     const myShare = e.shares.find((s) => s.memberId === me.id)?.cents ?? 0;
     const myItems = items.reduce((a, i) => a + i.myPart, 0);
+    // Payment state of *my* share of this receipt.
+    const cover = coveringRequest(g, me.id, e);
+    const pay =
+      e.paidBy === me.id || myShare <= 0
+        ? { state: "none" as const }
+        : cover && PAID_STATUSES.includes(cover.status)
+          ? { state: "paid" as const, viaAll: !cover.expenseIds || cover.expenseIds.length > 1 }
+          : cover && OPEN_STATUSES.includes(cover.status)
+            ? { state: "pending" as const, viaAll: !cover.expenseIds || cover.expenseIds.length > 1, payerUrl: cover.payerUrl ?? null }
+            : cover
+              ? { state: "pending" as const, viaAll: true, payerUrl: null }
+              : myShare <= bal.requestableCents
+                ? { state: "payable" as const }
+                : { state: "use_all" as const };
     return {
       id: e.id,
       description: e.description,
@@ -102,6 +118,7 @@ export function memberView(g: Group, me: Member) {
       items,
       myShare,
       myExtras: myShare - myItems,
+      pay,
       shares: e.shares.map((s) => ({ name: name(s.memberId), cents: s.cents, isMe: s.memberId === me.id })),
     };
   });
@@ -114,7 +131,7 @@ export function memberView(g: Group, me: Member) {
     requests: g.requests
       .filter((r) => r.memberId === me.id)
       .reverse()
-      .map((r) => ({ id: r.id, cents: r.cents, status: r.status, payerUrl: r.payerUrl ?? null, createdAt: r.createdAt, updatedAt: r.updatedAt })),
+      .map((r) => ({ id: r.id, cents: r.cents, status: r.status, payerUrl: r.payerUrl ?? null, label: r.label ?? null, createdAt: r.createdAt, updatedAt: r.updatedAt })),
     expenses,
   };
 }

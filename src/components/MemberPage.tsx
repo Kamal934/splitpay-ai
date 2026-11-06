@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, CircleCheck, ExternalLink, ImageIcon, Plus, Receipt, RefreshCw, Wallet } from "lucide-react";
+import { ChevronDown, CircleCheck, Clock, ExternalLink, ImageIcon, Plus, Receipt, RefreshCw, Wallet } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { MemberView } from "@/lib/access";
 import { fmt } from "@/lib/money";
@@ -11,7 +11,43 @@ import { api } from "./api";
 import Logo from "./Logo";
 import { Alert, Avatar, Badge, EmptyState, Spinner, StatusBadge } from "./ui";
 
-function ReceiptCard({ e, currency, meId }: { e: MemberView["expenses"][number]; currency: string; meId: string }) {
+type PayFn = (body: { expenseId?: string; all?: boolean }) => Promise<void>;
+
+/** Payment control for my share of one receipt. Labels only reflect what PayPal/the ledger confirm. */
+function ReceiptPay({ e, currency, onPay, busy }: { e: MemberView["expenses"][number]; currency: string; onPay: PayFn; busy: string }) {
+  const p = e.pay;
+  if (p.state === "none")
+    return e.paidByMe ? (
+      <Badge tone="brand">You paid this</Badge>
+    ) : null;
+  if (p.state === "paid")
+    return (
+      <Badge tone="success">
+        <CircleCheck className="h-3.5 w-3.5" aria-hidden /> Paid{p.viaAll ? " (in Pay all)" : ""}
+      </Badge>
+    );
+  if (p.state === "pending")
+    return (
+      <span className="flex flex-wrap items-center gap-2">
+        <Badge tone="warning">
+          <Clock className="h-3.5 w-3.5" aria-hidden /> {p.viaAll ? "In your Pay all request" : "Payment pending"}
+        </Badge>
+        {p.payerUrl && !p.viaAll && (
+          <a href={p.payerUrl} target="_blank" rel="noreferrer" className="btn-secondary h-8 px-3">
+            Open PayPal <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          </a>
+        )}
+      </span>
+    );
+  if (p.state === "use_all") return <span className="text-xs text-muted">Bills you paid cover part of this, so use Pay all</span>;
+  return (
+    <button className="btn-primary h-8 px-3" disabled={!!busy} onClick={() => onPay({ expenseId: e.id })}>
+      {busy === e.id ? <Spinner /> : <Wallet className="h-4 w-4" aria-hidden />} Pay {fmt(e.myShare, currency)}
+    </button>
+  );
+}
+
+function ReceiptCard({ e, currency, meId, onPay, busy }: { e: MemberView["expenses"][number]; currency: string; meId: string; onPay: PayFn; busy: string }) {
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(false);
   const date = new Date(e.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -33,6 +69,11 @@ function ReceiptCard({ e, currency, meId }: { e: MemberView["expenses"][number];
         </span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
+      {(e.pay.state !== "none" || e.paidByMe) && (
+        <div className="flex items-center justify-end border-t border-line bg-slate-50/50 px-4 py-2">
+          <ReceiptPay e={e} currency={currency} onPay={onPay} busy={busy} />
+        </div>
+      )}
 
       {open && (
         <div className="space-y-4 border-t border-line px-4 py-4">
@@ -102,6 +143,20 @@ export default function MemberPage({ token }: { token: string }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [payBusy, setPayBusy] = useState("");
+  const [payErr, setPayErr] = useState("");
+
+  const pay: PayFn = async (body) => {
+    setPayBusy(body.expenseId ?? "all");
+    setPayErr("");
+    try {
+      setView(await api<MemberView>(`/api/me/${token}/pay`, { method: "POST", body }));
+    } catch (e) {
+      setPayErr((e as Error).message);
+    } finally {
+      setPayBusy("");
+    }
+  };
 
   const load = useCallback(
     async (refresh = false) => {
@@ -198,6 +253,7 @@ export default function MemberPage({ token }: { token: string }) {
                 <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-3">
                   <span className="flex items-center gap-2">
                     <span className="num font-semibold text-ink">{fmt(r.cents, c)}</span>
+                    <span className="text-xs text-muted">{r.label ?? "All receipts"}</span>
                     <StatusBadge status={r.status} />
                   </span>
                   {r.payerUrl && (
@@ -212,8 +268,18 @@ export default function MemberPage({ token }: { token: string }) {
               </button>
             </div>
           )}
-          {owe > 0 && open.length === 0 && view.balance.requestableCents > 0 && (
-            <p className="mt-4 text-sm text-muted">{view.organiser} hasn&apos;t sent your PayPal request yet. You&apos;ll get it by email, and the Pay button will appear here.</p>
+          {view.balance.requestableCents > 0 && (
+            <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg bg-brand-50/60 p-3">
+              <button className="btn-primary" disabled={!!payBusy} onClick={() => pay({ all: true })}>
+                {payBusy === "all" ? <Spinner /> : <Wallet className="h-4 w-4" aria-hidden />} Pay all {fmt(view.balance.requestableCents, c)}
+              </button>
+              <span className="text-xs text-muted">One PayPal invoice with every receipt listed, or pay receipts one by one below.</span>
+            </div>
+          )}
+          {payErr && (
+            <div className="mt-3">
+              <Alert>{payErr}</Alert>
+            </div>
           )}
           {paid.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -261,7 +327,7 @@ export default function MemberPage({ token }: { token: string }) {
               <EmptyState icon={Receipt} title="No receipts yet" text="Bills added to this group will show up here with your share of each." />
             </div>
           ) : (
-            view.expenses.map((e) => <ReceiptCard key={e.id} e={e} currency={c} meId={view.me.id} />)
+            view.expenses.map((e) => <ReceiptCard key={e.id} e={e} currency={c} meId={view.me.id} onPay={pay} busy={payBusy} />)
           )}
         </section>
 
