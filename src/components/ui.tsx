@@ -145,7 +145,7 @@ export function Dialog({
   size,
 }: {
   wide?: boolean;
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "xl";
   open: boolean;
   onClose: () => void;
   title: string;
@@ -164,9 +164,9 @@ export function Dialog({
       ref={ref}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
-      className={`m-auto w-[calc(100%-2rem)] ${size === "lg" ? "max-w-2xl" : wide ? "max-w-xl" : "max-w-md"} rounded-xl border border-line bg-white p-0 shadow-xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-[2px]`}
+      className={`m-auto w-[calc(100%-2rem)] ${size === "xl" ? "max-w-4xl" : size === "lg" ? "max-w-2xl" : wide ? "max-w-xl" : "max-w-md"} rounded-xl border border-line bg-white p-0 shadow-xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-[2px]`}
     >
-      <div className="p-5">
+      <div className="max-h-[calc(100vh-9rem)] overflow-y-auto p-5">
         <h3 className="text-base font-semibold text-ink">{title}</h3>
         <div className="mt-3 text-sm text-muted">{children}</div>
       </div>

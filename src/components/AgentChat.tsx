@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowUp, Ban, Bell, ChevronRight, Hand, Zap, CircleAlert, CircleCheck, Receipt, RefreshCw, Send, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowUp, Ban, Bell, ChevronRight, Hand, Paperclip, Zap, CircleAlert, CircleCheck, Receipt, RefreshCw, Send, Sparkles, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Group } from "@/lib/types";
+import { emit } from "@/lib/events";
 import { api } from "./api";
 import { Spinner } from "./ui";
 
@@ -212,6 +213,9 @@ export default function AgentChat({ group, onChange }: { group: Group; onChange:
             send(input);
           }}
         >
+          <button type="button" className="btn-ghost h-8 px-2" onClick={() => emit("add-expense")} title="Add a receipt or expense" aria-label="Add a receipt or expense">
+            <Paperclip className="h-4 w-4" aria-hidden />
+          </button>
           <input
             className="h-8 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-slate-400"
             placeholder="Ask about balances or tell the agent what to do…"

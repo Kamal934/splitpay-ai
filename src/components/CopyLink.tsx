@@ -4,13 +4,14 @@ import { Check, Link2 } from "lucide-react";
 import { useState } from "react";
 
 /** Copies a member's private link (/me/<token>) so the organiser can send it on WhatsApp. */
-export default function CopyLink({ token, name }: { token?: string; name: string }) {
+export default function CopyLink({ token, name, compact = false }: { token?: string; name: string; compact?: boolean }) {
   const [done, setDone] = useState(false);
   if (!token) return null;
   const url = () => `${window.location.origin}/me/${token}`;
   return (
     <button
-      className="btn-ghost h-7 px-2 text-xs"
+      className={compact ? "btn-ghost h-7 w-7 px-0" : "btn-ghost h-7 px-2 text-xs"}
+      aria-label={`Copy ${name}'s private link`}
       title={`Copy ${name}'s private link`}
       onClick={async () => {
         try {
@@ -27,7 +28,7 @@ export default function CopyLink({ token, name }: { token?: string; name: string
       }}
     >
       {done ? <Check className="h-3.5 w-3.5 text-success" aria-hidden /> : <Link2 className="h-3.5 w-3.5" aria-hidden />}
-      {done ? "Copied" : "Link"}
+      {!compact && (done ? "Copied" : "Link")}
     </button>
   );
 }

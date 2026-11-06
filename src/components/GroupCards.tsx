@@ -206,19 +206,22 @@ export function GroupActivity({ group }: { group: Group }) {
       {items.length === 0 ? (
         <p className="mt-4 text-sm text-muted">Expenses, PayPal requests and payments will appear here as they happen.</p>
       ) : (
-        <ul className="mt-4 space-y-3">
+        <ul className="relative mt-4 space-y-4 before:absolute before:bottom-2 before:left-[3px] before:top-2 before:w-px before:bg-brand-100">
           {items.map((a, i) => {
             const A = ACT[a.kind];
             return (
-              <li key={i} className="flex items-start gap-3">
-                <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${A.tone}`}>
-                  <A.icon className="h-3.5 w-3.5" aria-hidden />
+              <li key={i} className="relative flex items-start gap-3 pl-4">
+                <span className="absolute left-0 top-3 h-[7px] w-[7px] rounded-full bg-brand-500 ring-2 ring-white" aria-hidden />
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${A.tone}`}>
+                  <A.icon className="h-4 w-4" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-ink" title={a.text}>{a.text}</p>
-                  {a.detail && <p className="num truncate text-xs text-muted">{a.detail}</p>}
+                  <p className="truncate text-sm font-medium text-ink" title={a.text}>{a.text}</p>
+                  <p className="num truncate text-xs text-muted">
+                    {new Date(a.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {a.detail ? ` · ${a.detail}` : ""}
+                  </p>
                 </div>
-                <span className="shrink-0 text-xs text-muted">{timeAgo(a.at)}</span>
               </li>
             );
           })}

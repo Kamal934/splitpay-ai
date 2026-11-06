@@ -1,15 +1,16 @@
 "use client";
 
-import { ArrowDown, ArrowUp, BookOpen, ChevronRight, CircleCheck, Play, Scale, Settings2, ShieldCheck, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, Bell, BookOpen, ChevronRight, CircleCheck, ExternalLink, Play, Scale, Settings2, ShieldCheck, X, Zap } from "lucide-react";
 import { useState } from "react";
 import { emit } from "@/lib/events";
 import { fmt } from "@/lib/money";
-import { groupStats, plural, timeAgo } from "@/lib/stats";
+import { groupStats, plural } from "@/lib/stats";
 import type { AutopilotSettings, Group } from "@/lib/types";
+import { OPEN_STATUSES } from "@/lib/types";
 import { api } from "./api";
 import { Toggle } from "./AutopilotPanel";
 import CopyLink from "./CopyLink";
-import { Alert, Avatar, Badge, Spinner } from "./ui";
+import { Alert, Avatar, Badge, Spinner, StatusBadge } from "./ui";
 
 /* ---------- Settlement overview: collection progress + balances in one card ---------- */
 
@@ -68,59 +69,105 @@ export function SettlementOverview({ group }: { group: Group }) {
       )}
 
       <div className="overflow-x-auto border-t border-line">
-        <table className="w-full min-w-[560px]">
+        <table className="w-full min-w-[720px]">
           <thead className="bg-slate-50/70">
             <tr>
-              <th className="th">Person</th>
-              <th className="th text-right">Total paid</th>
-              <th className="th text-right">Share</th>
-              <th className="th text-right">Balance</th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-muted">Person</th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-muted text-right">Total paid</th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-muted text-right">Share</th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-muted text-right">Balance</th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-muted">PayPal</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {s.balances.map((b) => (
               <tr key={b.member.id}>
-                <td className="td">
+                <td className="px-3 py-3 text-sm">
                   <div className="flex items-center gap-2.5">
                     <Avatar id={b.member.id} name={b.member.name} />
-                    <span className="font-medium text-ink">{b.member.name}</span>
-                    {b.member.isOrganizer ? <Badge tone="brand">Organiser</Badge> : <CopyLink token={b.member.accessToken} name={b.member.name} />}
+                    <span className="whitespace-nowrap font-medium text-ink">{b.member.name}</span>
+                    {b.member.isOrganizer ? <Badge tone="brand">Organiser</Badge> : <CopyLink token={b.member.accessToken} name={b.member.name} compact />}
                   </div>
                 </td>
-                <td className="td num text-right font-medium text-ink">{fmt(b.paidCents, c)}</td>
-                <td className="td num text-right text-muted">{fmt(b.shareCents, c)}</td>
-                <td className="td text-right">
+                <td className="px-3 py-3 text-sm num text-right font-medium text-ink">{fmt(b.paidCents, c)}</td>
+                <td className="px-3 py-3 text-sm num text-right text-muted">{fmt(b.shareCents, c)}</td>
+                <td className="px-3 py-3 text-sm text-right">
                   {b.netCents === 0 ? (
                     <Badge tone="success">
                       <CircleCheck className="h-3.5 w-3.5" aria-hidden /> Settled
                     </Badge>
                   ) : b.netCents > 0 ? (
-                    <span className="num inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                    <span className="num inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                       <ArrowDown className="h-3.5 w-3.5" aria-hidden /> Gets back {fmt(b.netCents, c)}
                     </span>
                   ) : (
                     <span className="inline-flex flex-col items-end">
-                      <span className="num inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+                      <span className="num inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2.5 py-1 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
                         <ArrowUp className="h-3.5 w-3.5" aria-hidden /> Owes {fmt(-b.netCents, c)}
                       </span>
-                      {b.pendingCents > 0 && <span className="num mt-0.5 text-xs text-muted">{fmt(b.pendingCents, c)} requested</span>}
                     </span>
                   )}
+                </td>
+                <td className="px-3 py-3 text-sm">
+                  <PersonRequests group={group} memberId={b.member.id} isOrganizer={b.member.isOrganizer} requestable={b.requestableCents} />
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot className="border-t border-line bg-slate-50/50">
             <tr>
-              <td className="td font-semibold text-ink" colSpan={3}>
+              <td className="px-3 py-3 text-sm font-semibold text-ink" colSpan={3}>
                 Total outstanding
               </td>
-              <td className="td num text-right text-base font-semibold text-ink">{fmt(s.open, c)}</td>
+              <td className="px-3 py-3 text-sm num text-right text-base font-semibold text-ink">{fmt(s.open, c)}</td>
+              <td className="px-3 py-3 text-sm" />
             </tr>
           </tfoot>
         </table>
       </div>
     </section>
+  );
+}
+
+/** One person's PayPal requests with their actions (were in the old Payments section). */
+function PersonRequests({ group, memberId, isOrganizer, requestable }: { group: Group; memberId: string; isOrganizer: boolean; requestable: number }) {
+  const c = group.currency;
+  // Newest first; hide cancelled ones to keep the row tidy.
+  const reqs = group.requests.filter((r) => r.memberId === memberId && r.status !== "CANCELLED").reverse();
+  if (isOrganizer) return <span className="text-xs text-muted">Collects</span>;
+  if (!reqs.length) return <span className="text-xs text-muted">{requestable > 0 ? "Not requested yet" : "–"}</span>;
+  return (
+    <div className="space-y-1.5">
+      {reqs.map((r) => {
+        const open = OPEN_STATUSES.includes(r.status);
+        return (
+          <div key={r.id} className="flex items-center gap-2 whitespace-nowrap">
+            <StatusBadge status={r.status} title={r.error} />
+            <span className="num cursor-help text-xs text-muted underline decoration-dotted decoration-slate-300 underline-offset-2" title={`For: ${r.label ?? "All receipts"}`}>
+              {fmt(r.cents, c)}
+            </span>
+            {r.remindersSent > 0 && <span className="text-[11px] text-muted">({plural(r.remindersSent, "reminder")})</span>}
+            <span className="flex items-center gap-0.5">
+              {r.payerUrl && (
+                <a className="btn-ghost h-7 w-7 px-0" href={r.payerUrl} target="_blank" rel="noreferrer" title="Open the PayPal invoice" aria-label="Open the PayPal invoice">
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </a>
+              )}
+              {open && (
+                <>
+                  <button className="btn-ghost h-7 w-7 px-0" onClick={() => emit("remind-request", r.id)} title="Send a PayPal reminder" aria-label="Send a PayPal reminder">
+                    <Bell className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  <button className="btn-ghost h-7 w-7 px-0 hover:text-danger" onClick={() => emit("cancel-request", r.id)} title="Cancel this request" aria-label="Cancel this request">
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -189,15 +236,20 @@ export function AutopilotCard({ group, onChange }: { group: Group; onChange: (g:
         </label>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn-secondary h-8 px-3" disabled={!!busy} onClick={run}>
-          {busy === "run" ? <Spinner /> : <Play className="h-3.5 w-3.5" aria-hidden />} Run now
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-500 bg-white px-3 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:opacity-50"
+          disabled={!!busy}
+          onClick={run}
+        >
+          {busy === "run" ? <Spinner /> : <Play className="h-3.5 w-3.5 fill-current" aria-hidden />} Run now
         </button>
-        <button className="btn-ghost h-8 px-2" onClick={() => emit("open-autopilot")}>
+        <span className="text-xs text-muted">{a.lastRunAt ? `Last run: ${new Date(a.lastRunAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not run yet"}</span>
+        <button className="btn-ghost ml-auto h-7 px-1.5 text-xs" onClick={() => emit("open-autopilot")} title="All autopilot rules">
           <Settings2 className="h-3.5 w-3.5" aria-hidden /> Rules
         </button>
       </div>
-      <p className="mt-2 text-xs text-muted">{a.lastRunAt ? <>Last run {timeAgo(a.lastRunAt)}: <span className="text-ink">{a.lastSummary}</span></> : "Hasn't run yet."}</p>
+      {a.lastSummary && <p className="mt-1.5 text-xs text-muted">{a.lastSummary}</p>}
       {msg && <p className="mt-1 text-xs text-success">{msg}</p>}
       {err && (
         <div className="mt-2">
@@ -205,8 +257,8 @@ export function AutopilotCard({ group, onChange }: { group: Group; onChange: (g:
         </div>
       )}
 
-      <p className="mt-auto flex items-center gap-1.5 rounded-lg bg-brand-50/70 px-2.5 py-2 pt-2 text-[11px] text-brand-700">
-        <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden /> Amounts always come from the ledger. You stay in control.
+      <p className="mt-4 flex items-center gap-1.5 rounded-lg bg-brand-50/70 px-2.5 py-2 text-[11px] text-brand-700">
+        <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden /> Your actions are always under your control.
       </p>
     </section>
   );
@@ -227,7 +279,7 @@ export function LedgerMini({ group }: { group: Group }) {
           <h2 className="whitespace-nowrap text-sm font-semibold text-ink">Group ledger</h2>
         </div>
         {group.expenses.length > 0 && (
-          <button className="btn-ghost h-7 whitespace-nowrap px-2 text-brand-700" onClick={() => document.getElementById("ledger")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          <button className="btn-ghost h-7 whitespace-nowrap px-2 text-brand-700" onClick={() => emit("open-ledger")}>
             View all <ChevronRight className="h-4 w-4" aria-hidden />
           </button>
         )}
@@ -235,7 +287,13 @@ export function LedgerMini({ group }: { group: Group }) {
       {rows.length === 0 ? (
         <p className="mt-4 text-sm text-muted">No expenses yet.</p>
       ) : (
-        <table className="mt-3 w-full text-xs">
+        <table className="mt-3 w-full table-fixed text-xs">
+          <colgroup>
+            <col className="w-[32%]" />
+            <col className="w-[30%]" />
+            <col className="w-[16%]" />
+            <col className="w-[22%]" />
+          </colgroup>
           <thead>
             <tr className="text-left text-muted">
               <th className="pb-2 font-medium">Date</th>
@@ -247,9 +305,9 @@ export function LedgerMini({ group }: { group: Group }) {
           <tbody className="divide-y divide-line">
             {rows.map((e) => (
               <tr key={e.id}>
-                <td className="whitespace-nowrap py-2 pr-2 text-muted">{new Date(e.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</td>
-                <td className="max-w-[90px] truncate py-2 pr-2 text-ink" title={e.description}>{e.description}</td>
-                <td className="py-2 pr-2 text-muted">{name(e.paidBy)}</td>
+                <td className="truncate py-2 pr-1 text-muted">{new Date(e.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+                <td className="truncate py-2 pr-1 text-ink" title={e.description}>{e.description}</td>
+                <td className="truncate py-2 pr-1 text-muted">{name(e.paidBy)}</td>
                 <td className="num py-2 text-right font-medium text-ink">{fmt(e.totalCents, group.currency)}</td>
               </tr>
             ))}

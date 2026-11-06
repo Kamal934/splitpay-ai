@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Camera, CircleCheck, CircleDashed, Clock, Pencil, Send, Users, Wallet } from "lucide-react";
+import { ArrowLeft, Camera, CircleCheck, CircleDashed, Clock, Pencil, Send, Upload, Users, Wallet } from "lucide-react";
+import { emit } from "@/lib/events";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { initials } from "@/lib/money";
@@ -64,6 +65,9 @@ export default function GroupHero({ group, onChange, onPeople }: { group: Group;
             Back to groups
           </Link>
           <div className="flex flex-wrap items-center gap-2">
+            <button className="btn-primary" onClick={() => emit("add-expense")}>
+              <Upload className="h-4 w-4" aria-hidden /> Add expense
+            </button>
             <button className="btn-secondary" onClick={onPeople}>
               <Users className="h-4 w-4" aria-hidden /> People &amp; emails
             </button>

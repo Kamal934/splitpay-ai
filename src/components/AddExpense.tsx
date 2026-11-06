@@ -38,7 +38,10 @@ export default function AddExpense({
   payerId,
   allowChat = true,
   title = "Add an expense",
+  bare = false,
 }: {
+  /** Render without the card frame and header (inside a dialog). */
+  bare?: boolean;
   group: Group;
   onAdded: (g: Group) => void;
   incoming?: Incoming | null;
@@ -220,8 +223,8 @@ export default function AddExpense({
   const hasDraft = items.length > 0 || !!img;
 
   return (
-    <section ref={sectionRef} className="card scroll-mt-4">
-      <div className="card-pad border-b border-line">
+    <section ref={sectionRef} className={bare ? "" : "card scroll-mt-4"}>
+      <div className={bare ? "hidden" : "card-pad border-b border-line"}>
         <SectionHeader
           title={title}
           description={chatMode ? "Paste your group chat and Claude finds who paid for what." : "Scan a receipt, paste a group chat, or enter items, then describe the split in plain English."}
@@ -235,7 +238,7 @@ export default function AddExpense({
         />
       </div>
 
-      <div className="card-pad space-y-6">
+      <div className={bare ? "space-y-6 text-ink" : "card-pad space-y-6"}>
         {chatMode && (
           <ChatImport
             key={chatText}

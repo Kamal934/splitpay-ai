@@ -18,12 +18,22 @@ import { PageBody } from "./AppShell";
 import Ledger from "./Ledger";
 import MembersEditor from "./MembersEditor";
 import SettleUp from "./SettleUp";
-import { Alert, StatCard } from "./ui";
+import { Alert, Dialog, StatCard } from "./ui";
+import { on } from "@/lib/events";
 
 export default function GroupView({ id, share }: { id: string; share?: string }) {
   const router = useRouter();
   const [incoming, setIncoming] = useState<Incoming | null>(null);
   const [shareErr, setShareErr] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
+
+  // Header button, banner, assistant paperclip → open "Add expense"; ledger card → full ledger.
+  useEffect(() => {
+    const a = on("add-expense", () => setAddOpen(true));
+    const b = on("open-ledger", () => setLedgerOpen(true));
+    return () => (a(), b());
+  }, []);
 
   // Arrived from the Android share sheet (or an iOS Shortcut): fetch what was shared.
   useEffect(() => {
@@ -31,6 +41,7 @@ export default function GroupView({ id, share }: { id: string; share?: string })
     (async () => {
       try {
         const meta = await api<{ kind: "chat" | "image"; text?: string; mime?: string; ext?: string }>(`/api/share/${share}`);
+        setAddOpen(true);
         if (meta.kind === "chat") setIncoming({ kind: "chat", text: meta.text ?? "" });
         else {
           const blob = await (await fetch(`/api/share/${share}?file=1`)).blob();
@@ -92,7 +103,8 @@ export default function GroupView({ id, share }: { id: string; share?: string })
       <GroupHero group={group} onChange={setGroup} onPeople={() => setEditing(true)} />
 
       <PageBody>
-        <NextAction group={group} onAddExpense={() => document.getElementById("add-expense")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+        <NextAction group={group} onAddExpense={() => setAddOpen(true)} />
+        {shareErr && <Alert>{shareErr}</Alert>}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           <StatCard icon={Wallet} tone="brand" label="Total spent" value={fmt(s.spent, group.currency)} hint={plural(group.expenses.length, "expense")} />
@@ -117,14 +129,8 @@ export default function GroupView({ id, share }: { id: string; share?: string })
               <LedgerMini group={group} />
             </div>
 
-            {shareErr && <Alert>{shareErr}</Alert>}
-            <div id="add-expense" className="scroll-mt-4">
-              <AddExpense group={group} onAdded={setGroup} incoming={incoming} />
-            </div>
+            {/* Dialog-only controllers (no sections of their own) */}
             <SettleUp group={group} onChange={setGroup} />
-            <div id="ledger" className="scroll-mt-4">
-              <Ledger group={group} onChange={setGroup} />
-            </div>
             <AutopilotPanel group={group} onChange={setGroup} />
           </div>
 
@@ -133,6 +139,22 @@ export default function GroupView({ id, share }: { id: string; share?: string })
           </div>
         </div>
       </PageBody>
+
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add an expense" size="xl" footer={<button className="btn-secondary" onClick={() => setAddOpen(false)}>Close</button>}>
+        <AddExpense
+          bare
+          group={group}
+          incoming={incoming}
+          onAdded={(g) => {
+            setGroup(g);
+            setAddOpen(false);
+          }}
+        />
+      </Dialog>
+
+      <Dialog open={ledgerOpen} onClose={() => setLedgerOpen(false)} title="Group ledger" size="xl" footer={<button className="btn-secondary" onClick={() => setLedgerOpen(false)}>Close</button>}>
+        {ledgerOpen && <Ledger bare group={group} onChange={setGroup} />}
+      </Dialog>
 
       <MembersEditor group={group} open={editing} onClose={() => setEditing(false)} onSaved={(g) => (setGroup(g), setEditing(false))} />
     </>

@@ -36,7 +36,7 @@ type Row = {
   [member: string]: string | number;
 };
 
-export default function Ledger({ group, onChange }: { group: Group; onChange: (g: Group) => void }) {
+export default function Ledger({ group, onChange, bare = false }: { group: Group; onChange: (g: Group) => void; bare?: boolean }) {
   const [toDelete, setToDelete] = useState<Row | null>(null);
   const [deleting, setDeleting] = useState(false);
   const name = (id: string) => group.members.find((m) => m.id === id)?.name ?? "?";
@@ -108,9 +108,9 @@ export default function Ledger({ group, onChange }: { group: Group; onChange: (g
   }, [rows, group.members]);
 
   return (
-    <section className="card card-pad">
-      <div className="mb-4">
-        <h2 className="text-base font-semibold text-ink">Group ledger</h2>
+    <section className={bare ? "text-ink" : "card card-pad"}>
+      <div className={bare ? "mb-3" : "mb-4"}>
+        {!bare && <h2 className="text-base font-semibold text-ink">Group ledger</h2>}
         <p className="mt-0.5 text-sm text-muted">Each person&apos;s share of every expense. Hover an expense to see how the AI split it.</p>
       </div>
       <div>
