@@ -7,7 +7,7 @@ SplitPay AI reads a receipt (or your group chat), understands how you want to sp
 > Built for the **PayPal AI Hackathon 2026**. Everything runs on the free PayPal **sandbox**; no real money moves.
 
 **Live demo:** https://splitpay-ai-6ckm.onrender.com
-**Demo video:** _YouTube link_
+**Demo video:** https://youtu.be/w9JuW8Z7_Zg
 
 ![Group screen: settlement overview, PayPal status per person and the AI assistant](gallery/02-group-settlement.png)
 
